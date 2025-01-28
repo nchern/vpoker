@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -271,6 +272,19 @@ func (r *Room) UpdatePartners(userID uuid.UUID, e Event) {
 	}
 }
 
+// DeepCopy creates a deep copy of this room via serialisation
+func (r *Room) DeepCopy() (*Room, error) {
+	var dest *Room
+	b, err := json.Marshal(&r)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(b, &dest); err != nil {
+		return nil, err
+	}
+	return dest, nil
+}
+
 // ReadLock performs thread-safe read of this object
 func (r *Room) ReadLock(fn func(*Room) error) error {
 	r.lock.RLock()
@@ -362,3 +376,11 @@ func (ti *TableItem) AsPlayer(p *Player) *TableItem {
 
 // Is defines if this item belongs to a specified class
 func (ti *TableItem) Is(cls Class) bool { return ti.Class == cls }
+
+// IsOwnedBy checks if this item is owned by a specified user
+func (ti *TableItem) IsOwnedBy(id uuid.UUID) bool {
+	return ti.OwnerID == id.String()
+}
+
+// IsOwned checks if this item is owned by anyone
+func (ti *TableItem) IsOwned() bool { return ti.OwnerID != "" }

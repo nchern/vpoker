@@ -339,7 +339,7 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 		if !item.Is(models.CardClass) {
 			return nil
 		}
-		if item.OwnerID != "" {
+		if item.IsOwned() {
 			return nil // already taken
 		}
 		item.OwnerID = curUser.ID.String()
@@ -526,24 +526,19 @@ func getRoomState(curUser *models.User, room *models.Room) (*models.Room, error)
 		if rm.Players[curUser.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not in the room")
 		}
-		b, err := json.Marshal(&rm)
-		if err != nil {
-			return err
-		}
-		// deep copy the current room as items must be modified
+		var err error
+		// deep copy the current room - items must be modified
 		// as their content differes for different users due to ownership
-		if err := json.Unmarshal(b, &roomCopy); err != nil {
-			return err
-		}
-		return nil
+		roomCopy, err = rm.DeepCopy()
+		return err
 	}); err != nil {
 		return nil, err
 	}
 	for _, it := range roomCopy.Items {
-		if it.OwnerID == curUser.ID.String() && it.Is(models.CardClass) {
+		if it.IsOwnedBy(curUser.ID) && it.Is(models.CardClass) {
 			it.Side = models.Face // owners always see their cards
 		}
-		isOwnedBySomeoneElse := it.OwnerID != "" && it.OwnerID != curUser.ID.String()
+		isOwnedBySomeoneElse := it.IsOwned() && !it.IsOwnedBy(curUser.ID)
 		if isOwnedBySomeoneElse && it.Is(models.CardClass) {
 			it.Side = models.Cover // if a card is owned by someone, others always see their card cover
 		}
