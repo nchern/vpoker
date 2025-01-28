@@ -203,12 +203,13 @@ function renderCard(card) {
     let side = card.info.side;
     let css = `card-${side}`
 
+    card.classList.remove('card-cover', 'card-face', 'owned');
+    card.style.borderColor = '';
     if (card.info.owner_id != '') {
         card.classList.add('owned');
         card.style.borderColor = players[card.info.owner_id].color || 'purple';
         // console.info(players[card.info.owner_id]);
     }
-    card.classList.remove('card-cover', 'card-face');  
     if (side == FACE) {
         text = `${card.info.rank} ${card.info.suit}`;
         color = card.info.suit == '♥' || card.info.suit == '♦' ? 'red': 'black';
@@ -374,20 +375,12 @@ function onLoad() {
                 updateTable(resp);
             } catch (e) {
                 // non-JSON payload
-                if (event.data === 'player_joined') {
+                if (event.data === 'refresh') {
                     location.reload();
                     return;
                 }
                 console.log(event.data);
             }
         };
-    }).error((status, msg) => {
-        // if (status > 0) {
-        //     return;
-        // }
-        // network error
-        // const deck = generateCards();
-        // const chips = generateChips();
-        // mkTableLocally(deck, chips);
     }).get(`${window.location.pathname}/state`);
 }

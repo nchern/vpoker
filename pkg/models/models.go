@@ -1,7 +1,6 @@
 package models
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -66,8 +65,8 @@ var (
 
 var chipTypes = map[Chip]int{
 	{Color: Gray, Val: 1}:   10,
-	{Color: Red, Val: 2}:    10,
-	{Color: Blue, Val: 10}:  7,
+	{Color: Red, Val: 5}:    8,
+	{Color: Blue, Val: 10}:  5,
 	{Color: Green, Val: 25}: 2,
 	{Color: Black, Val: 50}: 1,
 }
@@ -83,6 +82,7 @@ type Event string
 
 const (
 	UpdateAll Event = "update_all"
+	Refresh   Event = "refresh"
 	// PlayerJoined Event = "player_joined"
 )
 
@@ -151,18 +151,6 @@ func (p *Player) Unsubscribe() *Player {
 // CardList is a list of cards
 type CardList []*Card
 
-// ShuffledCopy returns a shuffled copy of this list
-func (li CardList) ShuffledCopy() CardList {
-	shuffled := make([]*Card, len(li))
-	copy(shuffled, li)
-	// O(n)
-	for i := len(shuffled) - 1; i > 0; i-- {
-		j := rand.Intn(i)
-		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
-	}
-	return shuffled
-}
-
 // Room represents a poker room
 type Room struct {
 	// ID of this room
@@ -194,12 +182,20 @@ func NewRoom(id uuid.UUID, chipsN int) *Room {
 			r.Deck = append(r.Deck, &Card{Rank: rank, Suit: suit, Side: Cover})
 		}
 	}
-	for c, n := range chipTypes {
-		for i := 0; i < n; i++ {
+	for c := range chipTypes {
+		for i := 0; i < chipsN; i++ {
 			r.Chips = append(r.Chips, &Chip{Val: c.Val, Color: c.Color})
 		}
 	}
 	return r
+}
+
+func shuffle(items []*TableItem) {
+	// O(n)
+	for i := len(items) - 1; i > 0; i-- {
+		j := rand.Intn(i)
+		items[i], items[j] = items[j], items[i]
+	}
 }
 
 // Start game rearaanges all the objects on the table to the initial state
@@ -207,10 +203,14 @@ func (r *Room) StartGame() *Room {
 	id := 0
 	x := 150
 	y := 20
-	for _, c := range r.Deck.ShuffledCopy() {
+	for _, c := range r.Deck {
 		r.Items = append(r.Items, NewTableItem(id, x, y).AsCard(c))
-		x++
 		id++
+	}
+	shuffle(r.Items)
+	for _, it := range r.Items {
+		it.X = x
+		x++
 	}
 	x = 10
 	y = 20
@@ -224,6 +224,21 @@ func (r *Room) StartGame() *Room {
 		id++
 	}
 	r.Items = append(r.Items, NewTableItem(id, 180, 170).AsDealer())
+	return r
+}
+
+func (r *Room) Shuffle() *Room {
+	cards := r.Items[0:52]
+	shuffle(cards)
+	x := 150
+	y := 20
+	for _, it := range cards {
+		it.X = x
+		it.Y = y
+		it.OwnerID = ""
+		it.Side = Cover
+		x++
+	}
 	return r
 }
 
@@ -283,12 +298,16 @@ const (
 // TableItemList is a list of TableItems
 type TableItemList []*TableItem
 
-// Get retrieves an item from the list by its index
-func (l TableItemList) Get(i int) (*TableItem, error) {
-	if i < 0 && i >= len(l) {
-		return nil, errors.New("out of range")
+// Get retrieves an item from the list by its id
+// XXX: O(n) implementation
+// TODO: make lookups O(1)
+func (l TableItemList) Get(id int) *TableItem {
+	for _, it := range l {
+		if it.ID == id {
+			return it
+		}
 	}
-	return l[i], nil
+	return nil
 }
 
 // TableItem represents a virtual object on the table

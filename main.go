@@ -223,6 +223,10 @@ func handlePush(ctx *Context, conn *websocket.Conn, update models.Event) error {
 		if err := conn.WriteJSON(state); err != nil {
 			return fmt.Errorf("conn.WriteJSON: %w", err)
 		}
+	case models.Refresh:
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(update)); err != nil {
+			return fmt.Errorf("conn.WriteMessage(Refresh): %w", err)
+		}
 	}
 	logger.Debug.Printf("%s push_finished: %s", ctx, update)
 	return nil
@@ -280,6 +284,33 @@ func (s *server) pushRoomUpdates(w http.ResponseWriter, r *http.Request) {
 	}))(w, r)
 }
 
+func (s *server) shuffle(r *http.Request) (*httpx.Response, error) {
+	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withRoom(s, r, "id").build()
+	if err != nil {
+		return nil, err
+	}
+	var notifyThem models.PlayerList
+	if err := ctx.room.Update(func(rm *models.Room) error {
+		if rm.Players[ctx.user.ID] == nil {
+			return httpx.NewError(http.StatusForbidden, "you are not in the room")
+		}
+		ctx.room.Shuffle()
+		for _, p := range rm.Players {
+			if p.ID == ctx.user.ID {
+				continue // do not update yourseld
+			}
+			notifyThem = append(notifyThem, p)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	// notify others
+	// push updates: potentially long operation - check
+	notifyThem.NotifyAll(models.Refresh)
+	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.room.ID)), nil
+}
+
 func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withRoom(s, r, "id").build()
 	if err != nil {
@@ -300,8 +331,8 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 		if !found {
 			return nil
 		}
-		item, err := rm.Items.Get(id)
-		if err != nil {
+		item := rm.Items.Get(id)
+		if item == nil {
 			return httpx.NewError(http.StatusBadRequest, "bad item id")
 		}
 		// only cards can be taken
@@ -326,11 +357,6 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 	updated.Side = models.Face
 	// push updates: potentially long operation - check
 	notifyThem.NotifyAll(models.UpdateAll)
-	// for _, p := range notifyThem {
-	// logger.Debug.Printf("recepient=%s send_push_begin", p.Name)
-	// p.Dispatch(models.UpdateAll)
-	// logger.Debug.Printf("recepient=%s send_push_finish", p.Name)
-	// }
 	return httpx.JSON(http.StatusOK, map[string]*models.TableItem{"updated": &updated}), nil
 }
 
@@ -391,8 +417,8 @@ func updateRoom(ctx *Context, r *http.Request) error {
 	if err := json.Unmarshal(b, &src); err != nil {
 		return err
 	}
-	dest, err := room.Items.Get(src.ID)
-	if err != nil {
+	dest := room.Items.Get(src.ID)
+	if dest == nil {
 		return httpx.NewError(http.StatusBadRequest, "bad item id")
 	}
 	if dest.Class != src.Class {
@@ -429,11 +455,6 @@ func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
 	}
 	// push updates: potentially long operation - check
 	notifyThem.NotifyAll(models.UpdateAll)
-	// for _, p := range notifyThem {
-	// logger.Debug.Printf("recepient=%s send_push_begin", p.Name)
-	// p.Dispatch(models.UpdateAll)
-	// logger.Debug.Printf("recepient=%s send_push_finish", p.Name)
-	// }
 	return httpx.JSON(http.StatusOK, m{}), nil
 }
 
@@ -492,8 +513,9 @@ func (s *server) renderRoom(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	return httpx.Render(http.StatusOK, pokerTable, m{
-		"Players":  players,
-		"Retpath":  fmt.Sprintf("/rooms/%s", room.ID),
+		"Players": players,
+		// "Retpath":  fmt.Sprintf("/rooms/%s", room.ID),
+		"RoomID":   room.ID,
 		"Username": curUser.Name,
 	})
 }
@@ -679,6 +701,8 @@ func main() {
 		httpx.H(auth(s.takeCard))).Methods("POST")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/listen",
 		s.pushRoomUpdates).Methods("GET")
+	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/shuffle",
+		httpx.H(auth(s.shuffle))).Methods("GET")
 
 	r.HandleFunc("/users/new", httpx.H(s.newUser))
 	r.HandleFunc("/users/profile",
