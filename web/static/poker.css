@@ -115,12 +115,24 @@ nav a:hover {
     cursor: grabbing;
 }
 
+.chip-gray {
+    background-image: url('/static/chip-gray.png');
+}
+
 .chip-red {
     background-image: url('/static/chip-red.png');
 }
 
 .chip-blue {
     background-image: url('/static/chip-blue.png');
+}
+
+.chip-green {
+    background-image: url('/static/chip-green.png');
+}
+
+.chip-black {
+    background-image: url('/static/chip-black.png');
 }
 
 .dealer {

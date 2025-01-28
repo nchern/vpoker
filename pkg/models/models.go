@@ -47,8 +47,11 @@ type Card struct {
 type Color string
 
 const (
-	Red  Color = "red"
-	Blue Color = "blue"
+	Red   Color = "red"
+	Blue  Color = "blue"
+	Gray  Color = "gray"
+	Green Color = "green"
+	Black Color = "black"
 )
 
 // color: #3498DB; Blue
@@ -60,6 +63,14 @@ var (
 		"#2ECC71", // Green
 	}
 )
+
+var chipTypes = map[Chip]int{
+	{Color: Gray, Val: 1}:   10,
+	{Color: Red, Val: 2}:    10,
+	{Color: Blue, Val: 10}:  7,
+	{Color: Green, Val: 25}: 2,
+	{Color: Black, Val: 50}: 1,
+}
 
 // Chip represents a poker chip
 type Chip struct {
@@ -183,14 +194,9 @@ func NewRoom(id uuid.UUID, chipsN int) *Room {
 			r.Deck = append(r.Deck, &Card{Rank: rank, Suit: suit, Side: Cover})
 		}
 	}
-	types := map[Color]int{
-		Red:  5,
-		Blue: 10,
-	}
-
-	for c, v := range types {
-		for i := 0; i < chipsN; i++ {
-			r.Chips = append(r.Chips, &Chip{Val: v, Color: c})
+	for c, n := range chipTypes {
+		for i := 0; i < n; i++ {
+			r.Chips = append(r.Chips, &Chip{Val: c.Val, Color: c.Color})
 		}
 	}
 	return r
