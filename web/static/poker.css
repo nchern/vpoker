@@ -1,0 +1,234 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #2a2a2a;
+    color: white;
+}
+
+nav {
+    width: 100%;
+    background-color: #333;
+    padding: 10px 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    color: white;
+    text-align: center;
+    position: fixed;
+    top: 0;
+    z-index: 1000;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    margin: 0 15px;
+    font-size: 18px;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+#card-table {
+    position: relative;
+
+    width: 800px;
+    height: 600px;
+    background-color: green;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.card {
+    position: absolute;
+    width: 90px;
+    height: 126px;
+
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 26px;
+    font-weight: bold;
+    cursor: grab;
+    color: black;
+    user-select: none;
+
+    /* background */
+    background-color: white;
+    background-image: url('/static/card-back-red.png');
+    background-position: center;
+    background-repeat: no-repeat; /* Prevent tiling of the image */
+    background-size: 100% 100%; /* Scale to fit the div's width and height */
+}
+
+.card-cover {
+    background-image: url('/static/card-back-red.png');
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+}
+
+.card-face {
+    background-image: none;
+    background-color: white;
+}
+
+.card:active {
+    cursor: grabbing;
+}
+
+/* Chip styles */
+.chip {
+    position: absolute;
+
+    background-size: 100% 100%; /* Scale the image to cover the div */
+    background-position: center; /* Center the image */
+    background-repeat: no-repeat; /* Prevent tiling of the image */
+
+    border-radius: 50%; /* Make it circular */
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3); /* Add a 3D effect */
+    
+    color: black;
+    display: flex;
+    cursor: grab;
+    
+    align-items: center;
+    justify-content: center;
+   
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    
+    width: 85px;
+    height: 85px;
+    
+    user-select: none;
+}
+
+.chip:active {
+    cursor: grabbing;
+}
+
+.chip-red {
+    background-image: url('/static/chip-red.png');
+}
+
+.chip-blue {
+    background-image: url('/static/chip-blue.png');
+}
+
+.dealer {
+    position: absolute;
+
+    /* border: 1px solid; */
+    /* border-color: black; */
+    background-color: white;
+    background-size: 100% 100%; /* Scale the image to cover the div */
+    background-position: center; /* Center the image */
+    background-repeat: no-repeat; /* Prevent tiling of the image */
+
+    border-radius: 50%; /* Make it circular */
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3); /* Add a 3D effect */
+    
+    color: black;
+    display: flex;
+    cursor: grab;
+    
+    align-items: center;
+    justify-content: center;
+   
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    
+    width: 85px;
+    height: 85px;
+    
+    user-select: none;
+    z-index: 1000;
+}
+
+.dealer:active {
+    cursor: grabbing;
+}
+
+/* Player styles */
+.player {
+    position: absolute;
+
+    background-color: white;
+    
+    border: 1px solid;
+    border-color: black;
+    border-radius: 50%; /* Make it circular */
+    
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3); /* Add a 3D effect */
+    
+    color: black;
+    display: flex;
+    
+    align-items: center;
+    justify-content: center;
+   
+    font-size: 24px;
+    /*font-family: "Comic Sans MS", "Brush Script MT", cursive;*/
+    font-family: "Copperplate", "Papyrus", fantasy;
+    font-weight: bold;
+    font-style: italic;
+
+    text-align: center;
+    
+    user-select: none;
+    
+    width: 85px;
+    height: 85px;
+}
+   
+/*
+    color: #3498DB; Blue
+    color: #F1C40F; Yellow
+*/
+
+.player_0 {
+    color: #FF5733;  /* Red */
+    top: 480px;
+    left: 20px
+}
+
+.player_1 {
+    color: #9B59B6; /* Purple */
+    top: 20px;
+    left: 700px
+}
+
+.player_2 {
+    color: #2ECC71; /* Green */
+    top: 480px;
+    left: 700px
+}
+
+.owned {
+    border: 7px solid;
+    /* border-color: purple; */
+}
+
+.owned_by_0 {
+    border: 3px solid;
+    border-color: #FF5733;
+}
+
+.owned_by_1 {
+    border: 3px solid;
+    border-color: #9B59B6;
+}
+
+.owned_by_2 {
+    border: 3px solid;
+    border-color: #2ECC71;
+}
