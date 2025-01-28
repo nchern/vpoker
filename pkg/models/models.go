@@ -64,12 +64,12 @@ var (
 	}
 )
 
-var chipTypes = map[Chip]int{
-	{Color: Gray, Val: 1}:   10,
-	{Color: Red, Val: 5}:    8,
-	{Color: Blue, Val: 10}:  5,
-	{Color: Green, Val: 25}: 2,
-	{Color: Black, Val: 50}: 1,
+var chipsSet = []Chip{
+	{Color: Gray, Val: 1},
+	{Color: Red, Val: 5},
+	{Color: Blue, Val: 10},
+	{Color: Green, Val: 25},
+	{Color: Black, Val: 50},
 }
 
 // Chip represents a poker chip
@@ -183,7 +183,7 @@ func NewRoom(id uuid.UUID, chipsN int) *Room {
 			r.Deck = append(r.Deck, &Card{Rank: rank, Suit: suit, Side: Cover})
 		}
 	}
-	for c := range chipTypes {
+	for _, c := range chipsSet {
 		for i := 0; i < chipsN; i++ {
 			r.Chips = append(r.Chips, &Chip{Val: c.Val, Color: c.Color})
 		}
@@ -203,7 +203,7 @@ func shuffle(items []*TableItem) {
 func (r *Room) StartGame() *Room {
 	id := 0
 	x := 150
-	y := 20
+	y := 120
 	for _, c := range r.Deck {
 		r.Items = append(r.Items, NewTableItem(id, x, y).AsCard(c))
 		id++
@@ -211,12 +211,22 @@ func (r *Room) StartGame() *Room {
 	shuffle(r.Items)
 	for _, it := range r.Items {
 		it.X = x
-		x++
+		x += 1
 	}
 	x = 10
 	y = 20
 	for i, c := range r.Chips {
 		if i > 0 && r.Chips[i-1].Color != c.Color {
+			if c.Color == Green {
+				x = 150
+				y = 20
+				continue
+			}
+			if c.Color == Black {
+				x = 290
+				y = 20
+				continue
+			}
 			y += 100
 			x = 10
 		}
@@ -224,7 +234,7 @@ func (r *Room) StartGame() *Room {
 		x++
 		id++
 	}
-	r.Items = append(r.Items, NewTableItem(id, 180, 170).AsDealer())
+	r.Items = append(r.Items, NewTableItem(id, 355, 255).AsDealer())
 	return r
 }
 
@@ -232,7 +242,7 @@ func (r *Room) Shuffle() *Room {
 	cards := r.Items[0:52]
 	shuffle(cards)
 	x := 150
-	y := 20
+	y := 120
 	for _, it := range cards {
 		it.X = x
 		it.Y = y
