@@ -4,21 +4,90 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/poker.css">
     <title>Poker table</title>
     <style>
+        #greeting {
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        #card-table {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            background-color: green;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button, .edit {
+            width: 260px; /* Ensuring equal width */
+            text-align: center;
+            display: block;
+        }
+
+        button {
+            background-color: #8B0000; /* Deep Red */
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            border: 3px solid #FFD700; /* Gold Border */
+            padding: 15px 0;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px auto;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background-color: #660000; /* Darker Red */
+        }
+
+        .edit {
+            background-color: #fff; /* White background to distinguish from buttons */
+            color: #333; /* Darker text for readability */
+            font-size: 18px;
+            font-weight: bold;
+            border: 3px solid #FFD700; /* Gold Border */
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            outline: none;
+            text-align: center;
+        }
+
+        .edit::placeholder {
+            color: #888;
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
-    <div id="greeting">
-        Hello, {{ .Username }}!
+    <nav>
+        <a href="/" >Home</a>
+        <span id="greeting">Hello, {{ .Username }}!</span>
+    </nav>
+    <div id="content">
+        <div id="card-table">
+            <form action="/users/profile?ret_path={{ .Retpath }}" method="POST">
+                <!-- <label for="input-field">Edit name:</label> -->
+                <input 
+                    class="edit"
+                    type="text"
+                    id="input-field"
+                    name="user_name"
+                    value="{{ .Username }}"
+                    placeholder="Enter your name"
+                    required>
+                <button type="submit">Submit</button>
+            </form>
+        </div>
     </div>
-    <div>
-        <button onclick="window.location.href='/'">Home</button>
-    </div>
-    <form action="/users/profile?ret_path={{ .Retpath }}" method="POST">
-        <label for="input-field">Edit name:</label>
-        <input type="text" id="input-field" name="user_name" value="{{ .Username }}" required>
-        <button type="submit">Submit</button>
-    </form>
 </body>
 </html>
