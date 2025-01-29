@@ -1,0 +1,4 @@
+FROM golang:1.19-alpine
+
+# Build the project inside an intermediate container
+RUN apk add build-base git
