@@ -234,8 +234,9 @@ function takeCard(card) {
 
 function newCard(info, x, y) {
     const card = newItem('card', info, x, y);
-    card.addEventListener('click', (e) => { 
-        if (e.ctrlKey || e.metaKey) {
+    card.addEventListener('click', (e) => {
+        console.log('DBEUG', isKeyTPressed, e);
+        if (e.ctrlKey || isKeyTPressed || e.metaKey) {
             takeCard(card);
         }
     });
@@ -356,7 +357,28 @@ function createItem(info) {
     return item;
 }
 
+let isKeyTPressed = false;
+
+function isKeyPressed(e, key) {
+    try {
+        return e.key.toLowerCase() === key;
+    } catch {
+        return false;
+    }
+}
+
 function onLoad() {
+    document.addEventListener('keydown', (event) => {
+        if (isKeyPressed(event, 't')) {
+            isKeyTPressed = true;
+        }
+    });
+    document.addEventListener('keyup', (event) => {
+        if (isKeyPressed(event, 't')) {
+            isKeyTPressed = false;
+        }
+    });
+
     ajax().success((resp) => {
         console.info('initial table fetch:', resp);
         updateTable(resp);

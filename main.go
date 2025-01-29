@@ -659,6 +659,9 @@ func authenticated(users models.UserMap, f httpx.RequestHandler) httpx.RequestHa
 }
 
 // TODO: decide what to do with abandoned rooms
+// TODO_FEAT: open owned cards by the owner
+// TODO_FEAT: render name on the poker table in profile
+// TODO_FEAT: redirect back when non-regged enters the room
 func main() {
 	s := &server{
 		endpoint: ":8080",
