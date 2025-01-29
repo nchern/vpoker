@@ -235,7 +235,7 @@ function takeCard(card) {
 function newCard(info, x, y) {
     const card = newItem('card', info, x, y);
     card.addEventListener('click', (e) => { 
-        if (e.ctrlKey) {
+        if (e.ctrlKey || e.metaKey) {
             takeCard(card);
         }
     });
