@@ -5,6 +5,8 @@ const FACE = 'face';
 const suits = ['♠', '♥', '♦', '♣']; // Spades, Hearts, Diamonds, Clubs
 const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
+const BUTTON_LEFT = 0;
+
 let players = {};
 
 function getSession() {
@@ -141,6 +143,9 @@ function generateCards() {
 }
 
 function onItemMouseDown(e, item) {
+    if (e.button != BUTTON_LEFT) {
+        return;
+    }
     let initialMouseX = e.clientX;
     let initialMouseY = e.clientY;
 
@@ -163,15 +168,18 @@ function onItemMouseDown(e, item) {
     document.addEventListener('mousemove', onMouseMove);
 
     document.addEventListener('mouseup', () => {
-        console.info('card mouse up: ', item.info);
+        console.info('DEBUG mouse up: ', item.info);
         ajax().postJSON(window.location.pathname + '/update', item.info);
         document.removeEventListener('mousemove', onMouseMove);
     }, { once: true });
 }
 
 function onCardDblClick(e, card) {
-    if (card.info.owner_id != '') {
-        return; // can't turn owned cards 
+    if (e.button != BUTTON_LEFT) {
+        return;
+    }
+    if (card.info.owner_id != '' && card.info.owner_id != getSession().user_id) {
+        return; // can't turn other player cards cards
     }
     card.info.side = card.info.side == COVER ? FACE: COVER;
     card.render();
@@ -232,12 +240,31 @@ function takeCard(card) {
         {'id': card.info.id});
 }
 
+function showCard(card) {
+    if (card.info.owner_id != getSession().user_id) {
+        return; // can't show not owned cards
+    }
+    ajax().success((resp) => {
+        console.info('show card result: ', resp);
+        if (resp.updated != null) {
+            updateItem(resp.updated);
+        }
+    }).postJSON(`${window.location.pathname}/show_card`,
+        {'id': card.info.id});
+}
+
 function newCard(info, x, y) {
     const card = newItem('card', info, x, y);
     card.addEventListener('click', (e) => {
-        console.log('DBEUG', isKeyTPressed, e);
+        console.log('DEBUG', isKeyTPressed, isKeyOPressed, e);
+        if (e.button != BUTTON_LEFT) {
+            return;
+        }
         if (e.ctrlKey || isKeyTPressed || e.metaKey) {
             takeCard(card);
+        }
+        if (e.shiftKey || isKeyOPressed) {
+            showCard(card);
         }
     });
     card.addEventListener('dblclick', (e) => { onCardDblClick(e, card) });
@@ -358,6 +385,7 @@ function createItem(info) {
 }
 
 let isKeyTPressed = false;
+let isKeyOPressed = false;
 
 function isKeyPressed(e, key) {
     try {
@@ -372,10 +400,16 @@ function onLoad() {
         if (isKeyPressed(event, 't')) {
             isKeyTPressed = true;
         }
+        if (isKeyPressed(event, 'o')) {
+            isKeyOPressed = true;
+        }
     });
     document.addEventListener('keyup', (event) => {
         if (isKeyPressed(event, 't')) {
             isKeyTPressed = false;
+        }
+        if (isKeyPressed(event, 'o')) {
+            isKeyOPressed = true;
         }
     });
 

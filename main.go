@@ -301,7 +301,7 @@ func (s *server) shuffle(r *http.Request) (*httpx.Response, error) {
 		ctx.room.Shuffle()
 		for _, p := range rm.Players {
 			if p.ID == ctx.user.ID {
-				continue // do not update yourseld
+				continue // do not update yourself
 			}
 			notifyThem = append(notifyThem, p)
 		}
@@ -313,6 +313,54 @@ func (s *server) shuffle(r *http.Request) (*httpx.Response, error) {
 	// push updates: potentially long operation - check
 	notifyThem.NotifyAll(models.Refresh)
 	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.room.ID)), nil
+}
+
+func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
+	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withRoom(s, r, "id").build()
+	if err != nil {
+		return nil, err
+	}
+	var updated *models.TableItem
+	var notifyThem models.PlayerList
+	if err := ctx.room.Update(func(rm *models.Room) error {
+		if rm.Players[ctx.user.ID] == nil {
+			return httpx.NewError(http.StatusForbidden, "you are not in the room")
+		}
+		req := map[string]int{}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			return err
+		}
+		id, found := req["id"]
+		if !found {
+			return nil
+		}
+		item := rm.Items.Get(id)
+		if item == nil {
+			return httpx.NewError(http.StatusBadRequest, "bad item id")
+		}
+		// only cards can be shown
+		if !item.Is(models.CardClass) {
+			return nil
+		}
+		if !item.IsOwnedBy(ctx.user.ID) {
+			return httpx.NewError(http.StatusForbidden, "this is not your card")
+		}
+		item.OwnerID = ""
+		updated = item
+		updated.Side = models.Face
+		for _, p := range rm.Players {
+			if p.ID == ctx.user.ID {
+				continue // do not update yourself
+			}
+			notifyThem = append(notifyThem, p)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	// push updates: potentially long operation - check
+	notifyThem.NotifyAll(models.UpdateAll)
+	return httpx.JSON(http.StatusOK, map[string]*models.TableItem{"updated": updated}), nil
 }
 
 func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
@@ -350,7 +398,7 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 		updated = *item
 		for _, p := range rm.Players {
 			if p.ID == curUser.ID {
-				continue // do not update yourseld
+				continue // do not update yourself
 			}
 			notifyThem = append(notifyThem, p)
 		}
@@ -416,7 +464,7 @@ func updateRoom(ctx *Context, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	logger.Debug.Printf("update %s %s", ctx, string(b))
+	logger.Debug.Printf("%s update: %s", ctx, string(b))
 	var src models.TableItem
 	if err := json.Unmarshal(b, &src); err != nil {
 		return err
@@ -430,7 +478,12 @@ func updateRoom(ctx *Context, r *http.Request) error {
 	}
 	dest.X = src.X
 	dest.Y = src.Y
-	dest.Side = src.Side
+	if dest.Side != src.Side {
+		if !dest.IsOwned() || dest.IsOwnedBy(curUser.ID) {
+			// card can be turned if it's not taken or by the owner only
+			dest.Side = src.Side
+		}
+	}
 	return nil
 }
 
@@ -449,7 +502,7 @@ func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
 		// push itself must happen outside room lock in order to avoid deadlocks
 		for _, p := range room.Players {
 			if p.ID == curUser.ID {
-				continue // do not update yourseld
+				continue // do not update yourself
 			}
 			notifyThem = append(notifyThem, p)
 		}
@@ -480,7 +533,7 @@ func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
 		rm.Join(ctx.user)
 		for _, p := range rm.Players {
 			if p.ID == ctx.user.ID {
-				continue // do not update yourseld
+				continue // do not update yourself
 			}
 			notifyThem = append(notifyThem, p)
 		}
@@ -664,7 +717,7 @@ func authenticated(users models.UserMap, f httpx.RequestHandler) httpx.RequestHa
 }
 
 // TODO: decide what to do with abandoned rooms
-// TODO_FEAT: open owned cards by the owner
+// TODO_FEAT: do not send cards suit/rank to the client if not opened / owned
 func main() {
 	s := &server{
 		endpoint: ":8080",
@@ -698,6 +751,8 @@ func main() {
 		httpx.H(auth(s.joinRoom))).Methods("GET")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/update",
 		httpx.H(auth(s.updateRoom))).Methods("POST")
+	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/show_card",
+		httpx.H(auth(s.showCard))).Methods("POST")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/take_card",
 		httpx.H(auth(s.takeCard))).Methods("POST")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/listen",
