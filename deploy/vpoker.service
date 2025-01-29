@@ -1,0 +1,20 @@
+[Unit]
+Description="Virtual Poker table"
+After=network.target
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+Restart=on-failure
+# -p 127.0.0.1:49100:49100      \
+ExecStart=docker run --rm       \
+    --name vpoker               \
+    --user "nobody:nobody"      \
+    -p 127.0.0.1:8080:8080      \
+    -e HOME=/www                \
+    -e LOG_DISABLE_TIMESTAMP=1  \
+    vpoker:latest /bin/vpoker
+
+[Install]
+WantedBy=multi-user.target

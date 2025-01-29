@@ -1,4 +1,5 @@
 NAME=vpoker
+SVC_NAME=vpoker
 TAG=latest
 BASE_BUILDER_IMAGE_NAME=base-builder:latest
 IMAGE_NAME=$(NAME):$(TAG)
@@ -59,3 +60,12 @@ container-image:
 # .PHONY: coverage-html
 # coverage-html: vet
 # 	@./tools/coverage.sh html
+
+.PHONY: service
+service: container-image
+	@install -m 0644 ./deploy/$(SVC_NAME).service /etc/systemd/system/
+	systemctl daemon-reload
+	systemctl stop $(SVC_NAME) || true
+	systemctl --now enable $(SVC_NAME)
+	sleep 2	# give time to capture any immediate failures
+	systemctl status -l --no-page $(SVC_NAME)
