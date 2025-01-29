@@ -34,8 +34,8 @@ nav a:hover {
 #card-table {
     position: relative;
 
-    width: 800px;
-    height: 600px;
+    width: 1024px;
+    height: 768px;
     background-color: green;
     border-radius: 10px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
@@ -209,20 +209,20 @@ nav a:hover {
 
 .player_0 {
     color: #FF5733;  /* Red */
-    top: 480px;
+    top: 660px;
     left: 20px
 }
 
 .player_1 {
     color: #9B59B6; /* Purple */
     top: 20px;
-    left: 700px
+    left: 920px
 }
 
 .player_2 {
     color: #2ECC71; /* Green */
-    top: 480px;
-    left: 700px
+    top: 660px;
+    left: 920px
 }
 
 .owned {

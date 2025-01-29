@@ -199,7 +199,7 @@ func shuffle(items []*TableItem) {
 	}
 }
 
-// Start game rearaanges all the objects on the table to the initial state
+// StartGame rearaanges all the objects on the table to the initial state
 func (r *Room) StartGame() *Room {
 	id := 0
 	x := 150
@@ -234,7 +234,7 @@ func (r *Room) StartGame() *Room {
 		x++
 		id++
 	}
-	r.Items = append(r.Items, NewTableItem(id, 355, 255).AsDealer())
+	r.Items = append(r.Items, NewTableItem(id, 470, 340).AsDealer())
 	return r
 }
 
