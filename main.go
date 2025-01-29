@@ -9,6 +9,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -175,7 +176,10 @@ func (b *contextBuilder) withUser(s *server, r *http.Request) *contextBuilder {
 	return b
 }
 
-func sanitizeRetpath(s string) string {
+const retPathKey = "ret_path"
+
+func sanitizedRetpath(u *url.URL) string {
+	s := u.Query().Get(retPathKey)
 	if !strings.HasPrefix(s, "/") {
 		logger.Info.Printf("bad ret_path: %s", s)
 		return ""
@@ -368,7 +372,7 @@ func (s *server) profile(r *http.Request) (*httpx.Response, error) {
 	ctx := newContextBuilder(r.Context()).withUser(s, r)
 	logger.Info.Printf("%s", ctx)
 	return httpx.Render(http.StatusOK, profile, m{
-		"Retpath":  sanitizeRetpath(r.URL.Query().Get("ret_path")),
+		"Retpath":  sanitizedRetpath(r.URL),
 		"Username": sess.user.Name,
 	})
 }
@@ -393,7 +397,7 @@ func (s *server) updateProfile(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	lastNameCookie := newLastName(time.Now(), name)
-	if retPath := sanitizeRetpath(r.URL.Query().Get("ret_path")); retPath != "" {
+	if retPath := sanitizedRetpath(r.URL); retPath != "" {
 		return httpx.Redirect(retPath).SetCookie(lastNameCookie), nil
 	}
 	return httpx.Render(
@@ -574,10 +578,12 @@ func (s *server) newRoom(r *http.Request) (*httpx.Response, error) {
 }
 
 func (s *server) newUser(r *http.Request) (*httpx.Response, error) {
-	logger.Debug.Printf("newUser.begin user_count=%d", s.users.Len())
-	sess := &session{}
-	cookie, err := r.Cookie("session")
-	if err != nil || cookie.Value == "" {
+	redirectTo := sanitizedRetpath(r.URL)
+	if redirectTo == "" {
+		redirectTo = "/"
+	}
+	old, err := getUserFromSession(r, s.users)
+	if err != nil || old.user == nil {
 		// Cookie not found or empty: create and set a new one
 		name := "Anon" + randomString()
 		if ln, err := r.Cookie("last_name"); err == nil {
@@ -585,22 +591,21 @@ func (s *server) newUser(r *http.Request) (*httpx.Response, error) {
 				name = ln.Value
 			}
 		}
-		// old, err := getUserFromSession(r, s.fetchUser)
-		// if err!=nil && old.{
-		// }
 		now := time.Now()
 		u := &models.User{ID: uuid.New(), Name: name}
 		s.users.Set(u.ID, u)
-		sess = &session{UserID: u.ID, CreatedAt: now, Name: u.Name}
+		sess := &session{UserID: u.ID, CreatedAt: now, Name: u.Name}
 		cookie := newSessionCookie(now, sess.toCookie())
-		logger.Info.Printf("user_registered user_id=%s name=%s", u.ID, u.Name)
-		return httpx.Redirect("/").
+		ctx, err := newContextBuilder(r.Context()).build()
+		if err != nil {
+			return nil, err
+		}
+		logger.Info.Printf("%s user_registered", ctx)
+		return httpx.Redirect(redirectTo).
 			SetCookie(cookie).
 			SetCookie(newLastName(now, name)), nil
 	}
-	logger.Info.Printf("newUser cookie=%s", cookie.Value)
-	return httpx.String(http.StatusBadRequest,
-		"non-empty cookies: clear cookies before registering a new user"), nil
+	return httpx.Redirect(redirectTo), nil
 }
 
 func (s *server) index(r *http.Request) (*httpx.Response, error) {
@@ -660,7 +665,6 @@ func authenticated(users models.UserMap, f httpx.RequestHandler) httpx.RequestHa
 
 // TODO: decide what to do with abandoned rooms
 // TODO_FEAT: open owned cards by the owner
-// TODO_FEAT: redirect back when non-regged enters the room
 func main() {
 	s := &server{
 		endpoint: ":8080",
@@ -677,7 +681,7 @@ func main() {
 				return nil, err
 			}
 			if resp.Code() == http.StatusUnauthorized {
-				return httpx.Redirect(url), nil
+				return httpx.Redirect(fmt.Sprintf("%s?ret_path=%s", url, r.URL.Path)), nil
 			}
 			return resp, nil
 		}
@@ -687,7 +691,7 @@ func main() {
 	r.HandleFunc("/", httpx.H(s.index)).Methods("GET")
 	r.HandleFunc("/rooms/new", httpx.H(auth(s.newRoom)))
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}",
-		httpx.H(redirectIfNoAuth("/", s.renderRoom))).Methods("GET")
+		httpx.H(redirectIfNoAuth("/users/new", s.renderRoom))).Methods("GET")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/state",
 		httpx.H(auth(s.roomState))).Methods("GET")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/join",
