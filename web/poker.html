@@ -13,7 +13,7 @@
         <a href="/" onclick="return confirm('Are you sure you want to leave?');">Home</a>
         <a href="/rooms/new" onclick="return confirm('Are you sure you want to leave?');">New game</a>
         <a href="/rooms/{{ .RoomID }}/shuffle" onclick="return confirm('Are you sure?');">Shuffle cards</a>
-        <a href="/users/profile?ret_path=/rooms/{{ .RoomID }}">Profile</a>
+        <a href="/users/profile?ret_path=/rooms/{{ .RoomID }}">Profile({{ .Username }})</a>
     </nav>
     <div id="card-table">
         {{ range $index, $item := .Players }}
