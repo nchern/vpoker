@@ -490,26 +490,26 @@ func (s *server) updateProfile(r *http.Request) (*httpx.Response, error) {
 		lastNameCookie)
 }
 
-func updateRoom(ctx *Context, r *http.Request) error {
+func updateItem(ctx *Context, r *http.Request) (*models.TableItem, error) {
 	curUser, room := ctx.user, ctx.room
 	if room.Players[curUser.ID] == nil {
-		return httpx.NewError(http.StatusForbidden, "you are not in the room")
+		return nil, httpx.NewError(http.StatusForbidden, "you are not in the room")
 	}
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	logger.Debug.Printf("%s update: %s", ctx, string(b))
 	var src models.TableItem
 	if err := json.Unmarshal(b, &src); err != nil {
-		return err
+		return nil, err
 	}
 	dest := room.Items.Get(src.ID)
 	if dest == nil {
-		return httpx.NewError(http.StatusBadRequest, "bad item id")
+		return nil, httpx.NewError(http.StatusBadRequest, "bad item id")
 	}
 	if dest.Class != src.Class {
-		return httpx.NewError(http.StatusBadRequest, "attempt to update readonly field .Class")
+		return nil, httpx.NewError(http.StatusBadRequest, "attempt to update readonly field .Class")
 	}
 	dest.X = src.X
 	dest.Y = src.Y
@@ -519,7 +519,7 @@ func updateRoom(ctx *Context, r *http.Request) error {
 			dest.Side = src.Side
 		}
 	}
-	return nil
+	return dest, nil
 }
 
 func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
@@ -529,8 +529,10 @@ func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
 	}
 	curUser, room := ctx.user, ctx.room
 	var notifyThem models.PlayerList
+	var updated *models.TableItem
 	if err := room.Update(func(rm *models.Room) error {
-		if err := updateRoom(ctx, r); err != nil {
+		updated, err = updateItem(ctx, r)
+		if err != nil {
 			return err
 		}
 		// collect players to push updates to
@@ -540,9 +542,10 @@ func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
 	}); err != nil {
 		return nil, err
 	}
+	logger.Debug.Printf("%s update dest=%+v", ctx, updated)
 	// push updates: potentially long operation - check
 	notifyThem.NotifyAll(models.UpdateAll)
-	return httpx.JSON(http.StatusOK, m{}), nil
+	return httpx.JSON(http.StatusOK, map[string]*models.TableItem{"updated": updated}), nil
 }
 
 func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
@@ -623,6 +626,10 @@ func getRoomState(curUser *models.User, room *models.Room) (*models.Room, error)
 		isOwnedBySomeoneElse := it.IsOwned() && !it.IsOwnedBy(curUser.ID)
 		if isOwnedBySomeoneElse && it.Is(models.CardClass) {
 			it.Side = models.Cover // if a card is owned by someone, others always see their card cover
+		}
+		if it.Side == models.Cover {
+			it.Rank = ""
+			it.Suit = models.BlankSuit
 		}
 	}
 	return roomCopy, nil
@@ -750,7 +757,7 @@ func handleSignalsLoop(srv *server) {
 			logger.Error.Printf("server.saveState %s", err)
 		}
 		if s == syscall.SIGTERM || s == os.Interrupt {
-			logger.Info.Printf("graceful shutdown: %s")
+			logger.Info.Printf("graceful shutdown: %s", s)
 			break
 		}
 		os.Exit(1)
@@ -759,7 +766,6 @@ func handleSignalsLoop(srv *server) {
 }
 
 // TODO: decide what to do with abandoned rooms
-// TODO_FEAT: do not send cards suit/rank to the client if not opened / owned
 func main() {
 	s := &server{
 		endpoint: ":8080",

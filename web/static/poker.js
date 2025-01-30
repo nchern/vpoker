@@ -161,7 +161,7 @@ function onItemMouseDown(e, item) {
 
         item.info.x = parseInt(item.style.left);
         item.info.y = parseInt(item.style.top);
-        
+
         ajax().postJSON(window.location.pathname + '/update', item.info);
     }
 
@@ -182,9 +182,13 @@ function onCardDblClick(e, card) {
         return; // can't turn other player cards cards
     }
     card.info.side = card.info.side == COVER ? FACE: COVER;
-    card.render();
-    
-    ajax().postJSON(`${window.location.pathname}/update`, card.info)
+    ajax().success((resp) => {
+        if (resp.updated == null) {
+            return;
+        }
+        card.info = resp.updated;
+        updateItem(resp.updated);
+    }).postJSON(`${window.location.pathname}/update`, card.info)
 }
 
 function newItem(cls, info, x, y) {
@@ -221,9 +225,9 @@ function renderCard(card) {
     if (side == FACE) {
         text = `${card.info.rank} ${card.info.suit}`;
         color = card.info.suit == '♥' || card.info.suit == '♦' ? 'red': 'black';
-    } 
+    }
     card.innerText = text;
-    card.classList.add(css);  
+    card.classList.add(css);
     card.style.color = color;
 }
 
@@ -275,7 +279,7 @@ function newCard(info, x, y) {
 
 function newChip(info, x, y) {
     const chip = newItem('chip', info, x, y);
-    chip.classList.add(`chip-${info.color}`);  
+    chip.classList.add(`chip-${info.color}`);
     chip.innerText = info.val;
     return chip;
 }
@@ -292,7 +296,7 @@ function newPlayer(info, x, y) {
     const player = players[info.owner_id];
     item.classList.add(player.skin);
     item.innerText = player.Name;
-    
+
     item.render = () => {
         // HACK
         item.style.left = ''; // use from css

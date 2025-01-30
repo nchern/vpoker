@@ -31,10 +31,11 @@ const (
 type Suit string
 
 const (
-	Spades   Suit = "♠"
-	Hearts   Suit = "♥"
-	Diamonds Suit = "♦"
-	Clubs    Suit = "♣"
+	BlankSuit      = ""
+	Spades    Suit = "♠"
+	Hearts    Suit = "♥"
+	Diamonds  Suit = "♦"
+	Clubs     Suit = "♣"
 )
 
 type Card struct {
