@@ -404,7 +404,7 @@ func (s *server) profile(r *http.Request) (*httpx.Response, error) {
 	}
 	ctx := newContextBuilder(r.Context()).withUser(s, r)
 	logger.Info.Printf("%s", ctx)
-	return httpx.Render(http.StatusOK, profile, m{
+	return httpx.RenderFile(http.StatusOK, "web/profile.html", m{
 		"Retpath":  sanitizedRetpath(r.URL),
 		"Username": sess.user.Name,
 	})
@@ -544,7 +544,7 @@ func (s *server) renderRoom(r *http.Request) (*httpx.Response, error) {
 		}
 		return nil, err
 	}
-	return httpx.Render(http.StatusOK, pokerTable, m{
+	return httpx.RenderFile(http.StatusOK, "web/poker.html", m{
 		"Players": players,
 		// "Retpath":  fmt.Sprintf("/rooms/%s", room.ID),
 		"RoomID":   room.ID,
@@ -657,7 +657,7 @@ func (s *server) index(r *http.Request) (*httpx.Response, error) {
 	}
 	logger.Info.Printf("%s / session=%s user_id=%s", r.Method, cookie.Value, curUser.ID)
 
-	return httpx.Render(http.StatusOK, index, m{
+	return httpx.RenderFile(http.StatusOK, "web/index.html", m{
 		"Username": curUser.Name,
 	})
 }

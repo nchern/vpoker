@@ -73,7 +73,7 @@ func JSON(code int, obj any) *Response {
 	return &Response{code: code, body: b, contentType: "application/json"}
 }
 
-// Render returns a response with rendered template
+// Render returns a response with a rendered template
 func Render(code int, t *template.Template, data any, cookies ...*http.Cookie) (*Response, error) {
 	buf := &bytes.Buffer{}
 	if err := t.Execute(buf, data); err != nil {
@@ -84,6 +84,15 @@ func Render(code int, t *template.Template, data any, cookies ...*http.Cookie) (
 		resp.SetCookie(c)
 	}
 	return resp, nil
+}
+
+// RenderFile is similar to Render, except it reads a template from disk every call
+func RenderFile(code int, tplFilename string, data any, cookies ...*http.Cookie) (*Response, error) {
+	t, err := template.ParseFiles(tplFilename)
+	if err != nil {
+		return nil, err
+	}
+	return Render(code, t, data, cookies...)
 }
 
 // Redirect returns an HTTP redirect response
