@@ -8,10 +8,13 @@ Requires=docker.service
 Type=simple
 Restart=on-failure
 # -p 127.0.0.1:49100:49100      \
+ExecStartPre=/bin/sh -c 'mkdir -p /tmp/vpoker-dat && chown -R nobody:nobody /tmp/vpoker-dat'  
+
 ExecStart=docker run --rm       \
     --name vpoker               \
     --user "nobody:nobody"      \
     -p 127.0.0.1:8080:8080      \
+    -v /tmp/vpoker-dat:/tmp     \
     -e HOME=/www                \
     -e LOG_DISABLE_TIMESTAMP=1  \
     vpoker:latest /bin/vpoker
