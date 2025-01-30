@@ -144,7 +144,7 @@ func writeResponse(r *http.Request, w http.ResponseWriter, code int, body []byte
 				r.Method, r.URL, requestID, code, err)
 		}
 	}
-	logger.Info.Printf("finish %s %s request_id=%s code=%d", r.Method, r.URL, requestID, code)
+	logger.Info.Printf("%s %s request_id=%s code=%d finish", r.Method, r.URL, requestID, code)
 }
 
 // H makes a http handler suitable for usage in go standard http lib out of httpx.RequestHandler
