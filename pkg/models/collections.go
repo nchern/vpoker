@@ -4,6 +4,7 @@
 package models
 
 import (
+	"encoding/json"
 	"sync"
 
 	"github.com/google/uuid"
@@ -34,6 +35,12 @@ type UserMap interface {
 
 	// Clone creates a copy of this map
 	Clone() UserMap
+
+	// MarshalJSON implements json.Marshaler interface
+	MarshalJSON() ([]byte, error)
+
+	// UnmarshalJSON implements json.Marshaler interface
+	UnmarshalJSON([]byte) error
 }
 
 type baseUUIDUserPtrMap struct {
@@ -53,6 +60,14 @@ func NewUserMapSyncronized() UserMap {
 	return &syncUserMap{
 		inner: NewUserMap(),
 	}
+}
+
+func (m *baseUUIDUserPtrMap) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m._map)
+}
+
+func (m *baseUUIDUserPtrMap) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &m._map)
 }
 
 func (m *baseUUIDUserPtrMap) Get(key uuid.UUID) (v *User, found bool) {
@@ -98,6 +113,18 @@ type syncUserMap struct {
 	inner UserMap
 
 	mutex sync.RWMutex
+}
+
+func (m *syncUserMap) MarshalJSON() ([]byte, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	return json.Marshal(m.inner)
+}
+
+func (m *syncUserMap) UnmarshalJSON(b []byte) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	return m.inner.UnmarshalJSON(b)
 }
 
 func (m *syncUserMap) Len() int {
@@ -167,6 +194,12 @@ type RoomMap interface {
 
 	// Remove removes a given key from this map
 	Remove(key uuid.UUID) bool
+
+	// MarshalJSON implements json.Marshaler interface
+	MarshalJSON() ([]byte, error)
+
+	// UnmarshalJSON implements json.Marshaler interface
+	UnmarshalJSON([]byte) error
 }
 
 type baseRoomMap struct {
@@ -210,6 +243,14 @@ func (m *baseRoomMap) Update(src map[uuid.UUID]*Room) RoomMap {
 		m._map[k] = v
 	}
 	return m
+}
+
+func (m *baseRoomMap) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m._map)
+}
+
+func (m *baseRoomMap) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &m._map)
 }
 
 func (m *baseRoomMap) Remove(key uuid.UUID) bool {
@@ -258,4 +299,16 @@ func (m *syncRoomMap) Remove(key uuid.UUID) bool {
 	m.mutex.Unlock()
 
 	return found
+}
+
+func (m *syncRoomMap) MarshalJSON() ([]byte, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	return json.Marshal(m.inner)
+}
+
+func (m *syncRoomMap) UnmarshalJSON(b []byte) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	return m.inner.UnmarshalJSON(b)
 }

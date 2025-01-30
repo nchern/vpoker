@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -11,8 +12,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
+	"path"
 	"strconv"
 	"strings"
+	"syscall"
 	"text/template"
 	"time"
 
@@ -31,12 +35,16 @@ func init() {
 const (
 	maxPlayers      = 3
 	cookieExpiresAt = 5 * 24 * time.Hour
+
+	statePath = "/tmp/vpoker.json"
 )
 
 var (
 	index      = template.Must(template.ParseFiles("web/index.html"))
 	pokerTable = template.Must(template.ParseFiles("web/poker.html"))
 	profile    = template.Must(template.ParseFiles("web/profile.html"))
+
+	errChanClosed = errors.New("channel closed")
 )
 
 type m map[string]any
@@ -204,7 +212,49 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-var errChanClosed = errors.New("channel closed")
+func (s *server) saveState() error {
+	f, err := os.Create(statePath)
+	defer f.Close()
+	if err != nil {
+		return err
+	}
+	for _, v := range []json.Marshaler{s.users, s.rooms} {
+		b, err := v.MarshalJSON()
+		if err != nil {
+			return err
+		}
+		if _, err := f.Write(b); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintln(f); err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+func (s *server) loadState() error {
+	if err := os.MkdirAll(path.Dir(statePath), 0700); err != nil {
+		return err
+	}
+	f, err := os.Open(statePath)
+	defer f.Close()
+	if err != nil {
+		return err
+	}
+	scanner := bufio.NewScanner(f)
+	for _, v := range []json.Unmarshaler{s.users, s.rooms} {
+		if scanner.Scan() {
+			if err := v.UnmarshalJSON([]byte(scanner.Text())); err != nil {
+				return err
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			return err
+		}
+	}
+	return err
+}
 
 func handlePush(ctx *Context, conn *websocket.Conn, update models.Event) error {
 	logger.Debug.Printf("ws %s push_begin: %s", ctx, update)
@@ -691,6 +741,21 @@ func authenticated(users models.UserMap, f httpx.RequestHandler) httpx.RequestHa
 	}
 }
 
+func handleSignalsLoop(srv *server) {
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	for s := range signals {
+		logger.Info.Printf("%s: exiting...", s)
+		if err := srv.saveState(); err != nil {
+			logger.Error.Printf("server.saveState %s", err)
+		}
+		// if s == syscall.SIGTERM || s == os.Interrupt {
+		// 	break
+		// }
+		os.Exit(1)
+	}
+}
+
 // TODO: decide what to do with abandoned rooms
 // TODO_FEAT: do not send cards suit/rank to the client if not opened / owned
 func main() {
@@ -698,6 +763,9 @@ func main() {
 		endpoint: ":8080",
 		rooms:    models.NewRoomMapSyncronized(),
 		users:    models.NewUserMapSyncronized(),
+	}
+	if err := s.loadState(); err != nil {
+		logger.Error.Printf("server.loadState %s", err)
 	}
 	auth := func(f httpx.RequestHandler) httpx.RequestHandler {
 		return authenticated(s.users, f)
@@ -708,6 +776,7 @@ func main() {
 			if err != nil {
 				return nil, err
 			}
+			// logger.Debug.Println(resp.Code())
 			if resp.Code() == http.StatusUnauthorized {
 				return httpx.Redirect(fmt.Sprintf("%s?ret_path=%s", url, r.URL.Path)), nil
 			}
@@ -748,6 +817,7 @@ func main() {
 	http.Handle("/static/",
 		http.StripPrefix("/static/", http.FileServer(http.Dir("./web/static"))))
 
+	go handleSignalsLoop(s)
 	logger.Info.Printf("Start listening on %s", s.endpoint)
 	must(http.ListenAndServe(s.endpoint, nil))
 }
