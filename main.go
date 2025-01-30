@@ -745,13 +745,14 @@ func handleSignalsLoop(srv *server) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 	for s := range signals {
-		logger.Info.Printf("%s: exiting...", s)
+		logger.Info.Printf("received: %s; saving state...", s)
 		if err := srv.saveState(); err != nil {
 			logger.Error.Printf("server.saveState %s", err)
 		}
-		// if s == syscall.SIGTERM || s == os.Interrupt {
-		// 	break
-		// }
+		if s == syscall.SIGTERM || s == os.Interrupt {
+			logger.Info.Printf("graceful shutdown: %s")
+			break
+		}
 		os.Exit(1)
 	}
 }

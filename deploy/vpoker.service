@@ -8,7 +8,7 @@ Requires=docker.service
 Type=simple
 Restart=on-failure
 # -p 127.0.0.1:49100:49100      \
-ExecStartPre=/bin/sh -c 'mkdir -p /tmp/vpoker-dat && chown -R nobody:nobody /tmp/vpoker-dat'  
+ExecStartPre=/bin/sh -c 'mkdir -p /tmp/vpoker-dat && chown -R nobody:nogroup /tmp/vpoker-dat'
 
 ExecStart=docker run --rm       \
     --name vpoker               \
