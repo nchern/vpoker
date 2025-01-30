@@ -62,16 +62,21 @@ container-image:
 
 .PHONY: config-nginx
 config-nginx :
-	@install -m 0644 ./deploy/nginx/$(SVC_NAME) /etc/nginx/sites-available/
-	@systemctl restart nginx
+	install -m 0644 ./deploy/nginx/$(SVC_NAME) /etc/nginx/sites-available/
+	systemctl restart nginx
 	sleep 2	# give time to capture any immediate failures
 	systemctl status -l --no-page nginx
 
 .PHONY: service
 service: container-image
-	@install -m 0644 ./deploy/$(SVC_NAME).service /etc/systemd/system/
+	install -m 0644 ./deploy/$(SVC_NAME).service /etc/systemd/system/
 	systemctl daemon-reload
 	systemctl stop $(SVC_NAME) || true
 	systemctl --now enable $(SVC_NAME)
 	sleep 2	# give time to capture any immediate failures
 	systemctl status -l --no-page $(SVC_NAME)
+
+.PHONY: deploy
+deploy:
+	git push origin master
+	./deploy/deploy.sh
