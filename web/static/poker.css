@@ -31,6 +31,19 @@ nav a:hover {
     text-decoration: underline;
 }
 
+#offline-banner {
+    color: red;
+
+    display:none;
+
+    font-size: 22;
+    font-weight: bold;
+
+    margin-bottom: 20px;
+
+    text-align: center;
+}
+
 #card-table {
     position: relative;
 
@@ -93,21 +106,21 @@ nav a:hover {
 
     border-radius: 50%; /* Make it circular */
     box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3); /* Add a 3D effect */
-    
+
     color: black;
     display: flex;
     cursor: grab;
-    
+
     align-items: center;
     justify-content: center;
-   
+
     font-size: 26px;
     font-weight: bold;
     text-align: center;
-    
+
     width: 70px;
     height: 70px;
-    
+
     user-select: none;
 }
 
@@ -147,21 +160,21 @@ nav a:hover {
 
     border-radius: 50%; /* Make it circular */
     box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3); /* Add a 3D effect */
-    
+
     color: black;
     display: flex;
     cursor: grab;
-    
+
     align-items: center;
     justify-content: center;
-   
+
     font-size: 22px;
     font-weight: bold;
     text-align: center;
-    
+
     width: 85px;
     height: 85px;
-    
+
     user-select: none;
     z-index: 1000;
 }
@@ -175,19 +188,21 @@ nav a:hover {
     position: absolute;
 
     background-color: white;
-    
+    /* background-image: url('/static/player.png'); */
+    /* opacity: 1; */
+
     border: 1px solid;
     border-color: black;
     border-radius: 50%; /* Make it circular */
-    
+
     box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3); /* Add a 3D effect */
-    
+
     color: black;
     display: flex;
-    
+
     align-items: center;
     justify-content: center;
-   
+
     font-size: 24px;
     /*font-family: "Comic Sans MS", "Brush Script MT", cursive;*/
     font-family: "Copperplate", "Papyrus", fantasy;
@@ -195,13 +210,13 @@ nav a:hover {
     font-style: italic;
 
     text-align: center;
-    
+
     user-select: none;
-    
+
     width: 85px;
     height: 85px;
 }
-   
+
 /*
     color: #3498DB; Blue
     color: #F1C40F; Yellow

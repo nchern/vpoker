@@ -425,8 +425,16 @@ function onLoad() {
         // }, 10000);
 
         const socket = new WebSocket(`ws://${window.location.host}${window.location.pathname}/listen`);
-        socket.onopen = () => { console.log('websocket connected'); };
-        socket.onclose = () => { console.log('websocket disconnected'); };
+        socket.onopen = () => {
+            console.log('websocket connected');
+            let banner = document.getElementById('offline-banner');
+            banner.style.display = 'none';
+        };
+        socket.onclose = () => {
+            console.log('websocket disconnected');
+            let banner = document.getElementById('offline-banner');
+            banner.style.display = 'block';
+        };
         socket.onerror = (err) => { console.error('websocket error:', err); };
         socket.onmessage = (event) => {
             // console.log('websocket message:', typeof event.data);
