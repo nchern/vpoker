@@ -12,7 +12,7 @@ ExecStartPre=/bin/sh -c 'mkdir -p /tmp/vpoker-dat && chown -R nobody:nogroup /tm
 
 ExecStart=docker run --rm       \
     --name vpoker               \
-    --user "nobody:nobody"      \
+    --user "nobody:nogroup"     \
     -p 127.0.0.1:8080:8080      \
     -v /tmp/vpoker-dat:/tmp     \
     -e HOME=/www                \
