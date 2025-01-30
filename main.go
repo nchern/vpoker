@@ -755,6 +755,7 @@ func handleSignalsLoop(srv *server) {
 		}
 		os.Exit(1)
 	}
+	os.Exit(0)
 }
 
 // TODO: decide what to do with abandoned rooms
