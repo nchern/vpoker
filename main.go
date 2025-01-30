@@ -199,17 +199,21 @@ func sanitizedRetpath(u *url.URL) string {
 	return s
 }
 
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
+type ItemUpdatedResponse struct {
+	Updated *models.TableItem `json:"updated"`
+}
+
 type server struct {
 	endpoint string
 
 	rooms models.RoomMap
 	users models.UserMap
-}
-
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
 }
 
 func (s *server) saveState() error {
@@ -289,6 +293,7 @@ func handlePush(ctx *Context, conn *websocket.Conn, update models.Event) error {
 func (s *server) pushRoomUpdates(w http.ResponseWriter, r *http.Request) {
 	// TODO: finalize channel properly. Now any error yields to deadlock.
 	// IT IS NOT CLEAR HOW how to gracefully finalize channel on errors.
+	// It means that for now there is a goroutine leak on disconnected web sockets
 	// now it leads to race conditions when a new channel is created
 	httpx.H(authenticated(s.users, func(r *http.Request) (*httpx.Response, error) {
 		ctx, err := newContextBuilder(r.Context()).withUser(s, r).withRoom(s, r, "id").build()
@@ -325,8 +330,8 @@ func (s *server) pushRoomUpdates(w http.ResponseWriter, r *http.Request) {
 					logger.Error.Printf("ws %s %s", ctx, err) // continue listening
 				}
 			case <-time.After(15 * time.Second): // check state periodically
-				// logger.Debug.Printf("user_id=%s user_name=%s websocket_ping", ctx.user.ID, ctx.user.Name)
-				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				// logger.Debug.Printf("%s websocket_ping", ctx)
+				if err := conn.WriteMessage(websocket.PingMessage, []byte("ping")); err != nil {
 					logger.Error.Printf("ws %s %s", ctx, err)
 					// decide how to unsubscribe - race conditions
 					// unable to write - close this connection
@@ -400,7 +405,7 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 	}
 	// push updates: potentially long operation - check
 	notifyThem.NotifyAll(models.UpdateAll)
-	return httpx.JSON(http.StatusOK, map[string]*models.TableItem{"updated": updated}), nil
+	return httpx.JSON(http.StatusOK, &ItemUpdatedResponse{Updated: updated}), nil
 }
 
 func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
@@ -444,7 +449,7 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 	updated.Side = models.Face
 	// push updates: potentially long operation - check
 	notifyThem.NotifyAll(models.UpdateAll)
-	return httpx.JSON(http.StatusOK, map[string]*models.TableItem{"updated": &updated}), nil
+	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: &updated}), nil
 }
 
 func (s *server) profile(r *http.Request) (*httpx.Response, error) {
@@ -545,7 +550,7 @@ func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
 	logger.Debug.Printf("%s update dest=%+v", ctx, updated)
 	// push updates: potentially long operation - check
 	notifyThem.NotifyAll(models.UpdateAll)
-	return httpx.JSON(http.StatusOK, map[string]*models.TableItem{"updated": updated}), nil
+	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: updated}), nil
 }
 
 func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {

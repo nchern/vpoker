@@ -162,7 +162,7 @@ type Room struct {
 	Players map[uuid.UUID]*Player
 
 	// Deck represents a deck of cards on the table
-	Deck CardList
+	Deck CardList `json:"-"`
 
 	// Chips represnets collection of all chips on the table
 	Chips []*Chip
