@@ -29,7 +29,6 @@ vet:
 .PHONY: generate
 generate:
 	echo generating
-# 	@./tools/gen-assertions.sh
 #	@./tools/gen-version.sh
 
 .PHONY: build
@@ -60,6 +59,13 @@ container-image:
 # .PHONY: coverage-html
 # coverage-html: vet
 # 	@./tools/coverage.sh html
+
+.PHONY: config-nginx
+config-nginx :
+	@install -m 0644 ./deploy/nginx/$(SVC_NAME) /etc/nginx/sites-available/
+	@systemctl restart nginx
+	sleep 2	# give time to capture any immediate failures
+	systemctl status -l --no-page nginx
 
 .PHONY: service
 service: container-image
