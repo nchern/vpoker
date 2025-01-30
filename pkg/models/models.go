@@ -263,23 +263,15 @@ func (r *Room) Join(u *User) *Room {
 	return r
 }
 
-// Partners returns all partners of a given user, that is all players but a given one
-func (r *Room) UpdatePartners(userID uuid.UUID, e Event) {
-	others := []*Player{}
-	r.lock.RLock()
+func (r *Room) OtherPlayers(current *User) PlayerList {
+	var others PlayerList
 	for _, p := range r.Players {
-		if p.ID == userID {
+		if p.ID == current.ID {
 			continue
 		}
 		others = append(others, p)
 	}
-	defer r.lock.RUnlock()
-
-	for _, p := range others {
-		// logger.Debug.Printf("recepient=%s send_push_begin", p.Name)
-		p.Dispatch(e)
-		// logger.Debug.Printf("recepient=%s send_push_finish", p.Name)
-	}
+	return others
 }
 
 // DeepCopy creates a deep copy of this room via serialisation

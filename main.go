@@ -299,12 +299,7 @@ func (s *server) shuffle(r *http.Request) (*httpx.Response, error) {
 			return httpx.NewError(http.StatusForbidden, "you are not in the room")
 		}
 		ctx.room.Shuffle()
-		for _, p := range rm.Players {
-			if p.ID == ctx.user.ID {
-				continue // do not update yourself
-			}
-			notifyThem = append(notifyThem, p)
-		}
+		notifyThem = rm.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -346,14 +341,9 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 			return httpx.NewError(http.StatusForbidden, "this is not your card")
 		}
 		item.OwnerID = ""
+		item.Side = models.Face
 		updated = item
-		updated.Side = models.Face
-		for _, p := range rm.Players {
-			if p.ID == ctx.user.ID {
-				continue // do not update yourself
-			}
-			notifyThem = append(notifyThem, p)
-		}
+		notifyThem = rm.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -396,12 +386,7 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 		}
 		item.OwnerID = curUser.ID.String()
 		updated = *item
-		for _, p := range rm.Players {
-			if p.ID == curUser.ID {
-				continue // do not update yourself
-			}
-			notifyThem = append(notifyThem, p)
-		}
+		notifyThem = rm.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -500,12 +485,7 @@ func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
 		}
 		// collect players to push updates to
 		// push itself must happen outside room lock in order to avoid deadlocks
-		for _, p := range room.Players {
-			if p.ID == curUser.ID {
-				continue // do not update yourself
-			}
-			notifyThem = append(notifyThem, p)
-		}
+		notifyThem = room.OtherPlayers(curUser)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -531,12 +511,7 @@ func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
 			return httpx.NewError(http.StatusForbidden, "this room is full")
 		}
 		rm.Join(ctx.user)
-		for _, p := range rm.Players {
-			if p.ID == ctx.user.ID {
-				continue // do not update yourself
-			}
-			notifyThem = append(notifyThem, p)
-		}
+		notifyThem = rm.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
