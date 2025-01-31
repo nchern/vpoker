@@ -570,7 +570,7 @@ func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
 			return nil
 		}
 		logger.Debug.Printf("players_joind=%d", len(rm.Players))
-		if len(rm.Players) > maxPlayers {
+		if len(rm.Players) >= maxPlayers {
 			return httpx.NewError(http.StatusForbidden, "this room is full")
 		}
 		rm.Join(ctx.user)
@@ -776,6 +776,8 @@ func handleSignalsLoop(srv *server) {
 
 // TODO: decide what to do with abandoned rooms. Now they not only stay in memory but also
 // keep websocket groutines/channels forever
+// TODO_FEAT: add chips when player joins - automate arrangements
+// TODO_FEAT: somehow account chips that belong to a particular player
 func main() {
 	s := &server{
 		endpoint: ":8080",
