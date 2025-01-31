@@ -252,14 +252,13 @@ func (s *server) loadState() error {
 	if err != nil {
 		return err
 	}
-	scanner := bufio.NewScanner(f)
+	r := bufio.NewReader(f)
 	for _, v := range []json.Unmarshaler{s.users, s.rooms} {
-		if scanner.Scan() {
-			if err := v.UnmarshalJSON([]byte(scanner.Text())); err != nil {
-				return err
-			}
+		l, err := r.ReadString('\n')
+		if err != nil {
+			return err
 		}
-		if err := scanner.Err(); err != nil {
+		if err := v.UnmarshalJSON([]byte(l)); err != nil {
 			return err
 		}
 	}
