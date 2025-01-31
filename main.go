@@ -25,7 +25,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nchern/vpoker/pkg/httpx"
 	"github.com/nchern/vpoker/pkg/logger"
-	"github.com/nchern/vpoker/pkg/models"
+	"github.com/nchern/vpoker/pkg/poker"
 )
 
 func init() {
@@ -60,7 +60,7 @@ type session struct {
 	CreatedAt time.Time `json:"created_at"`
 	Name      string    `json:"name"`
 
-	user *models.User `json:"-"`
+	user *poker.User `json:"-"`
 }
 
 func (s *session) toJSON() []byte {
@@ -121,8 +121,8 @@ func newLastName(now time.Time, v string) *http.Cookie {
 
 type Context struct {
 	ctx  context.Context
-	room *models.Room
-	user *models.User
+	room *poker.Room
+	user *poker.User
 }
 
 func (c *Context) String() string {
@@ -212,14 +212,14 @@ var upgrader = websocket.Upgrader{
 }
 
 type ItemUpdatedResponse struct {
-	Updated *models.TableItem `json:"updated"`
+	Updated *poker.TableItem `json:"updated"`
 }
 
 type server struct {
 	endpoint string
 
-	rooms models.RoomMap
-	users models.UserMap
+	rooms poker.RoomMap
+	users poker.UserMap
 }
 
 func (s *server) saveState() error {
@@ -265,7 +265,7 @@ func (s *server) loadState() error {
 	return nil
 }
 
-func handlePush(ctx *Context, conn *websocket.Conn, update models.Event) error {
+func handlePush(ctx *Context, conn *websocket.Conn, update poker.Event) error {
 	logger.Debug.Printf("ws %s push_begin: %s", ctx, update)
 	switch update {
 	case "":
@@ -276,7 +276,7 @@ func handlePush(ctx *Context, conn *websocket.Conn, update models.Event) error {
 			logger.Error.Printf("%s conn.WriteMessage %s", ctx, err)
 		}
 		return errChanClosed
-	case models.UpdateAll:
+	case poker.UpdateAll:
 		// logger.Debug.Printf("ws %s getRoomState.begin: %s", ctx, update)
 		state, err := getRoomState(ctx.user, ctx.room)
 		if err != nil {
@@ -286,7 +286,7 @@ func handlePush(ctx *Context, conn *websocket.Conn, update models.Event) error {
 		if err := conn.WriteJSON(state); err != nil {
 			return fmt.Errorf("conn.WriteJSON: %w", err)
 		}
-	case models.Refresh:
+	case poker.Refresh:
 		if err := conn.WriteMessage(websocket.TextMessage, []byte(update)); err != nil {
 			return fmt.Errorf("conn.WriteMessage(Refresh): %w", err)
 		}
@@ -305,9 +305,9 @@ func (s *server) pushRoomUpdates(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return nil, err
 		}
-		updates := make(chan models.Event)
-		var p *models.Player
-		if err := ctx.room.Update(func(rm *models.Room) error {
+		updates := make(chan poker.Event)
+		var p *poker.Player
+		if err := ctx.room.Update(func(rm *poker.Room) error {
 			p = rm.Players[ctx.user.ID]
 			if p == nil {
 				return httpx.NewError(http.StatusForbidden, "you are not in the room")
@@ -353,8 +353,8 @@ func (s *server) shuffle(r *http.Request) (*httpx.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	var notifyThem models.PlayerList
-	if err := ctx.room.Update(func(rm *models.Room) error {
+	var notifyThem poker.PlayerList
+	if err := ctx.room.Update(func(rm *poker.Room) error {
 		if rm.Players[ctx.user.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not in the room")
 		}
@@ -366,7 +366,7 @@ func (s *server) shuffle(r *http.Request) (*httpx.Response, error) {
 	}
 	// notify others
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(models.Refresh)
+	notifyThem.NotifyAll(poker.Refresh)
 	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.room.ID)), nil
 }
 
@@ -375,9 +375,9 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	var updated *models.TableItem
-	var notifyThem models.PlayerList
-	if err := ctx.room.Update(func(rm *models.Room) error {
+	var updated *poker.TableItem
+	var notifyThem poker.PlayerList
+	if err := ctx.room.Update(func(rm *poker.Room) error {
 		if rm.Players[ctx.user.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not in the room")
 		}
@@ -394,14 +394,14 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 			return httpx.NewError(http.StatusBadRequest, "bad item id")
 		}
 		// only cards can be shown
-		if !item.Is(models.CardClass) {
+		if !item.Is(poker.CardClass) {
 			return nil
 		}
 		if !item.IsOwnedBy(ctx.user.ID) {
 			return httpx.NewError(http.StatusForbidden, "this is not your card")
 		}
 		item.OwnerID = ""
-		item.Side = models.Face
+		item.Side = poker.Face
 		updated = item
 		notifyThem = rm.OtherPlayers(ctx.user)
 		return nil
@@ -409,7 +409,7 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(models.UpdateAll)
+	notifyThem.NotifyAll(poker.UpdateAll)
 	return httpx.JSON(http.StatusOK, &ItemUpdatedResponse{Updated: updated}), nil
 }
 
@@ -419,9 +419,9 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	curUser, room := ctx.user, ctx.room
-	var updated models.TableItem
-	var notifyThem models.PlayerList
-	if err := room.Update(func(rm *models.Room) error {
+	var updated poker.TableItem
+	var notifyThem poker.PlayerList
+	if err := room.Update(func(rm *poker.Room) error {
 		if rm.Players[curUser.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not in the room")
 		}
@@ -438,7 +438,7 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 			return httpx.NewError(http.StatusBadRequest, "bad item id")
 		}
 		// only cards can be taken
-		if !item.Is(models.CardClass) {
+		if !item.Is(poker.CardClass) {
 			return nil
 		}
 		if item.IsOwned() {
@@ -451,9 +451,9 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 	}); err != nil {
 		return nil, err
 	}
-	updated.Side = models.Face
+	updated.Side = poker.Face
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(models.UpdateAll)
+	notifyThem.NotifyAll(poker.UpdateAll)
 	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: &updated}), nil
 }
 
@@ -482,7 +482,7 @@ func (s *server) updateProfile(r *http.Request) (*httpx.Response, error) {
 	if name == "" {
 		return httpx.String(http.StatusBadRequest, "empty name"), nil
 	}
-	if err := s.users.Update(sess.user.ID, func(u *models.User) error {
+	if err := s.users.Update(sess.user.ID, func(u *poker.User) error {
 		u.Name = name
 		sess.user = u
 		return nil
@@ -500,7 +500,7 @@ func (s *server) updateProfile(r *http.Request) (*httpx.Response, error) {
 		lastNameCookie)
 }
 
-func updateItem(ctx *Context, r *http.Request) (*models.TableItem, error) {
+func updateItem(ctx *Context, r *http.Request) (*poker.TableItem, error) {
 	curUser, room := ctx.user, ctx.room
 	if room.Players[curUser.ID] == nil {
 		return nil, httpx.NewError(http.StatusForbidden, "you are not in the room")
@@ -510,7 +510,7 @@ func updateItem(ctx *Context, r *http.Request) (*models.TableItem, error) {
 		return nil, err
 	}
 	logger.Debug.Printf("%s update: %s", ctx, string(b))
-	var src models.TableItem
+	var src poker.TableItem
 	if err := json.Unmarshal(b, &src); err != nil {
 		return nil, err
 	}
@@ -538,9 +538,9 @@ func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	curUser, room := ctx.user, ctx.room
-	var notifyThem models.PlayerList
-	var updated *models.TableItem
-	if err := room.Update(func(rm *models.Room) error {
+	var notifyThem poker.PlayerList
+	var updated *poker.TableItem
+	if err := room.Update(func(rm *poker.Room) error {
 		updated, err = updateItem(ctx, r)
 		if err != nil {
 			return err
@@ -554,7 +554,7 @@ func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
 	}
 	logger.Debug.Printf("%s update dest=%+v", ctx, updated)
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(models.UpdateAll)
+	notifyThem.NotifyAll(poker.UpdateAll)
 	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: updated}), nil
 }
 
@@ -563,8 +563,8 @@ func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	var notifyThem models.PlayerList
-	if err := ctx.room.Update(func(rm *models.Room) error {
+	var notifyThem poker.PlayerList
+	if err := ctx.room.Update(func(rm *poker.Room) error {
 		hasJoined := rm.Players[ctx.user.ID] != nil
 		if hasJoined {
 			return nil
@@ -580,8 +580,8 @@ func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	// push updates: potentially long operation - check
-	// notifyThem.NotifyAll(models.PlayerJoined)
-	notifyThem.NotifyAll(models.UpdateAll)
+	// notifyThem.NotifyAll(poker.PlayerJoined)
+	notifyThem.NotifyAll(poker.UpdateAll)
 	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.room.ID)), nil
 }
 
@@ -592,8 +592,8 @@ func (s *server) renderRoom(r *http.Request) (*httpx.Response, error) {
 	}
 	curUser, room := ctx.user, ctx.room
 	errRedirect := errors.New("redirect")
-	players := []*models.Player{}
-	if err := room.ReadLock(func(rm *models.Room) error {
+	players := []*poker.Player{}
+	if err := room.ReadLock(func(rm *poker.Room) error {
 		if rm.Players[curUser.ID] == nil {
 			return errRedirect
 		}
@@ -608,16 +608,15 @@ func (s *server) renderRoom(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	return httpx.RenderFile(http.StatusOK, "web/poker.html", m{
-		"Players": players,
-		// "Retpath":  fmt.Sprintf("/rooms/%s", room.ID),
+		"Players":  players,
 		"RoomID":   room.ID,
 		"Username": curUser.Name,
 	})
 }
 
-func getRoomState(curUser *models.User, room *models.Room) (*models.Room, error) {
-	var roomCopy *models.Room
-	if err := room.ReadLock(func(rm *models.Room) error {
+func getRoomState(curUser *poker.User, room *poker.Room) (*poker.Room, error) {
+	var roomCopy *poker.Room
+	if err := room.ReadLock(func(rm *poker.Room) error {
 		if rm.Players[curUser.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not in the room")
 		}
@@ -630,16 +629,16 @@ func getRoomState(curUser *models.User, room *models.Room) (*models.Room, error)
 		return nil, err
 	}
 	for _, it := range roomCopy.Items {
-		if it.IsOwnedBy(curUser.ID) && it.Is(models.CardClass) {
-			it.Side = models.Face // owners always see their cards
+		if it.IsOwnedBy(curUser.ID) && it.Is(poker.CardClass) {
+			it.Side = poker.Face // owners always see their cards
 		}
 		isOwnedBySomeoneElse := it.IsOwned() && !it.IsOwnedBy(curUser.ID)
-		if isOwnedBySomeoneElse && it.Is(models.CardClass) {
-			it.Side = models.Cover // if a card is owned by someone, others always see their card cover
+		if isOwnedBySomeoneElse && it.Is(poker.CardClass) {
+			it.Side = poker.Cover // if a card is owned by someone, others always see their card cover
 		}
-		if it.Side == models.Cover {
+		if it.Side == poker.Cover {
 			it.Rank = ""
-			it.Suit = models.BlankSuit
+			it.Suit = poker.BlankSuit
 		}
 	}
 	return roomCopy, nil
@@ -665,7 +664,7 @@ func (s *server) newRoom(r *http.Request) (*httpx.Response, error) {
 	curUser := sess.user
 	logger.Info.Printf("user_id=%s action=room_created", curUser.ID)
 
-	room := models.NewRoom(uuid.New(), 50).StartGame()
+	room := poker.NewRoom(uuid.New(), 50).StartGame()
 	s.rooms.Set(room.ID, room)
 	room.Join(curUser)
 
@@ -687,7 +686,7 @@ func (s *server) newUser(r *http.Request) (*httpx.Response, error) {
 			}
 		}
 		now := time.Now()
-		u := &models.User{ID: uuid.New(), Name: name}
+		u := poker.NewUser(uuid.New(), name, now)
 		s.users.Set(u.ID, u)
 		sess := &session{UserID: u.ID, CreatedAt: now, Name: u.Name}
 		cookie := newSessionCookie(now, sess.toCookie())
@@ -729,7 +728,7 @@ func (s *server) index(r *http.Request) (*httpx.Response, error) {
 	})
 }
 
-func getUserFromSession(r *http.Request, users models.UserMap) (*session, error) {
+func getUserFromSession(r *http.Request, users poker.UserMap) (*session, error) {
 	sess := &session{}
 	cookie, err := r.Cookie("session")
 	if err != nil {
@@ -745,7 +744,7 @@ func getUserFromSession(r *http.Request, users models.UserMap) (*session, error)
 	return sess, nil
 }
 
-func authenticated(users models.UserMap, f httpx.RequestHandler) httpx.RequestHandler {
+func authenticated(users poker.UserMap, f httpx.RequestHandler) httpx.RequestHandler {
 	return func(r *http.Request) (*httpx.Response, error) {
 		sess, err := getUserFromSession(r, users)
 		if err != nil {
@@ -780,8 +779,8 @@ func handleSignalsLoop(srv *server) {
 func main() {
 	s := &server{
 		endpoint: ":8080",
-		rooms:    models.NewRoomMapSyncronized(),
-		users:    models.NewUserMapSyncronized(),
+		rooms:    poker.NewRoomMapSyncronized(),
+		users:    poker.NewUserMapSyncronized(),
 	}
 	if err := s.loadState(); err != nil {
 		logger.Error.Printf("server.loadState %s", err)

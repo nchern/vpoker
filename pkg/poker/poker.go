@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nchern/vpoker/pkg/logger"
@@ -12,8 +13,20 @@ import (
 
 // User represents a system user
 type User struct {
-	ID   uuid.UUID
+	CreatedAt time.Time
+
+	ID uuid.UUID
+
 	Name string
+}
+
+// NewUser creates a new instance of a User
+func NewUser(iD uuid.UUID, name string, createdAt time.Time) *User {
+	return &User{
+		CreatedAt: createdAt,
+		ID:        iD,
+		Name:      name,
+	}
 }
 
 // Ranks represents all possible card ranks
