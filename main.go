@@ -49,6 +49,12 @@ var (
 
 type m map[string]any
 
+func logError(err error, tag string) {
+	if err != nil {
+		logger.Error.Printf("%s: %s", tag, err)
+	}
+}
+
 type session struct {
 	UserID    uuid.UUID `json:"user_id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -218,7 +224,7 @@ type server struct {
 
 func (s *server) saveState() error {
 	f, err := os.Create(statePath)
-	defer f.Close()
+	defer func() { logError(f.Close(), "saveState os.Create") }()
 	if err != nil {
 		return err
 	}
@@ -242,7 +248,7 @@ func (s *server) loadState() error {
 		return err
 	}
 	f, err := os.Open(statePath)
-	defer f.Close()
+	defer func() { logError(f.Close(), "loadState os.Open") }()
 	if err != nil {
 		return err
 	}
@@ -257,7 +263,7 @@ func (s *server) loadState() error {
 			return err
 		}
 	}
-	return err
+	return nil
 }
 
 func handlePush(ctx *Context, conn *websocket.Conn, update models.Event) error {
@@ -770,7 +776,8 @@ func handleSignalsLoop(srv *server) {
 	os.Exit(0)
 }
 
-// TODO: decide what to do with abandoned rooms
+// TODO: decide what to do with abandoned rooms. Now they not only stay in memory but also
+// keep websocket groutines/channels forever
 func main() {
 	s := &server{
 		endpoint: ":8080",

@@ -165,7 +165,7 @@ type Room struct {
 	Deck CardList `json:"-"`
 
 	// Chips represnets collection of all chips on the table
-	Chips []*Chip
+	Chips []*Chip `json:"-"`
 
 	// Items on the table
 	Items TableItemList
@@ -203,33 +203,17 @@ func shuffle(items []*TableItem) {
 // StartGame rearaanges all the objects on the table to the initial state
 func (r *Room) StartGame() *Room {
 	id := 0
-	x := 150
-	y := 120
 	for _, c := range r.Deck {
-		r.Items = append(r.Items, NewTableItem(id, x, y).AsCard(c))
+		r.Items = append(r.Items, NewTableItem(id, 0, 0).AsCard(c))
 		id++
 	}
-	shuffle(r.Items)
-	for _, it := range r.Items {
-		it.X = x
-		x += 1
-	}
-	x = 10
-	y = 20
+	r.Shuffle()
+	x := 10
+	y := 20
 	for i, c := range r.Chips {
 		if i > 0 && r.Chips[i-1].Color != c.Color {
-			if c.Color == Green {
-				x = 150
-				y = 20
-				continue
-			}
-			if c.Color == Black {
-				x = 290
-				y = 20
-				continue
-			}
-			y += 100
 			x = 10
+			y += 100
 		}
 		r.Items = append(r.Items, NewTableItem(id, x, y).AsChip(c))
 		x++
@@ -243,7 +227,7 @@ func (r *Room) Shuffle() *Room {
 	cards := r.Items[0:52]
 	shuffle(cards)
 	x := 150
-	y := 120
+	y := 20
 	for _, it := range cards {
 		it.X = x
 		it.Y = y
