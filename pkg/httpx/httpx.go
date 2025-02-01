@@ -31,6 +31,20 @@ func RequestID(ctx context.Context) string {
 	return fmt.Sprintf("%s", ctx.Value(requestIDKey))
 }
 
+// IsMobile detects whether request was made from a mobile device
+func IsMobile(r *http.Request) bool {
+	mobileKeywords := []string{
+		"Mobile", "Android", "iPhone", "iPad", "iPod", "Windows Phone",
+		"BlackBerry", "Opera Mini", "Opera Mobi",
+	}
+	for _, keyword := range mobileKeywords {
+		if strings.Contains(r.UserAgent(), keyword) {
+			return true
+		}
+	}
+	return false
+}
+
 // Response represents http response
 type Response struct {
 	code int

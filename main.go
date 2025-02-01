@@ -804,11 +804,21 @@ func main() {
 		}
 	}
 
+	h := func(fn httpx.RequestHandler) func(http.ResponseWriter, *http.Request) {
+		return httpx.H(func(r *http.Request) (*httpx.Response, error) {
+			if httpx.IsMobile(r) {
+				return httpx.String(http.StatusBadRequest,
+					"<h1>Mobile devices are not supported!</h1>"), nil
+			}
+			return fn(r)
+		})
+	}
+
 	r := mux.NewRouter()
-	r.HandleFunc("/", httpx.H(s.index)).Methods("GET")
+	r.HandleFunc("/", h(s.index)).Methods("GET")
 	r.HandleFunc("/rooms/new", httpx.H(auth(s.newRoom)))
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}",
-		httpx.H(redirectIfNoAuth("/users/new", s.renderRoom))).Methods("GET")
+		h(redirectIfNoAuth("/users/new", s.renderRoom))).Methods("GET")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/state",
 		httpx.H(auth(s.roomState))).Methods("GET")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/join",
@@ -824,12 +834,12 @@ func main() {
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/shuffle",
 		httpx.H(auth(s.shuffle))).Methods("GET")
 
-	r.HandleFunc("/users/new", httpx.H(s.newUser))
+	r.HandleFunc("/users/new", h(s.newUser))
 	r.HandleFunc("/users/profile",
-		httpx.H(auth(s.profile))).
+		h(auth(s.profile))).
 		Methods("GET")
 	r.HandleFunc("/users/profile",
-		httpx.H(auth(s.updateProfile))).
+		h(auth(s.updateProfile))).
 		Methods("POST")
 
 	http.Handle("/", r)
