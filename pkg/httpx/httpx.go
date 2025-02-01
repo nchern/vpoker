@@ -155,7 +155,11 @@ func H(fn RequestHandler) func(http.ResponseWriter, *http.Request) {
 			requestID = mkRequestID()
 		}
 		logger.Info.Printf("%s %s request_id=%s start", r.Method, r.URL, requestID)
-		logger.Info.Printf("request_id=%s browser: %s ", requestID, r.Header.Get("User-Agent"))
+		clientIP := r.Header.Get("X-Real-IP")
+		if clientIP == "" {
+			clientIP = r.RemoteAddr
+		}
+		logger.Info.Printf("request_id=%s ip=%s browser: %s", requestID, clientIP, r.UserAgent())
 		r = r.WithContext(context.WithValue(r.Context(), requestIDKey, requestID))
 		res, err := fn(r)
 		if err != nil {

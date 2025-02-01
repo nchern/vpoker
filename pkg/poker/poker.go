@@ -136,7 +136,7 @@ func newPlayer(u *User, c Color) *Player {
 func (p *Player) Dispatch(update Event) *Player {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error.Println("Player.Dispatch panic:", r)
+			logger.Error.Printf("Player.Dispatch name=%s panic: %s", p.Name, r)
 		}
 	}()
 	if p.updates != nil {

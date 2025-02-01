@@ -694,7 +694,7 @@ func (s *server) newUser(r *http.Request) (*httpx.Response, error) {
 		if err != nil {
 			return nil, err
 		}
-		logger.Info.Printf("%s user_registered", ctx)
+		logger.Info.Printf("%s user_name=%s user_registered", ctx, name)
 		return httpx.Redirect(redirectTo).
 			SetCookie(cookie).
 			SetCookie(newLastName(now, name)), nil
