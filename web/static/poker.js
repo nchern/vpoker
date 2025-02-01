@@ -1,6 +1,6 @@
 
-const COVER = 'cover';
 const FACE = 'face';
+const COVER = 'cover';
 
 const suits = ['♠', '♥', '♦', '♣']; // Spades, Hearts, Diamonds, Clubs
 const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -8,6 +8,9 @@ const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 const BUTTON_LEFT = 0;
 
 let players = {};
+
+let isKeyTPressed = false;
+let isKeyOPressed = false;
 
 function getSession() {
     const cookies = document.cookie.split('; ');
@@ -117,6 +120,33 @@ class AJAX {
     }
 }
 
+// Rect represents a rect over an HTML element
+class Rect {
+    constructor(item) {
+        this.item = item;
+    }
+
+    left() { return parseInt(window.getComputedStyle(this.item).left); }
+
+    top() { return parseInt(window.getComputedStyle(this.item).top); }
+
+    width() { return parseInt(window.getComputedStyle(this.item).width); }
+
+    height() {return parseInt(window.getComputedStyle(this.item).height); }
+
+    centerX() {
+        return this.left() + this.width()/2;
+    }
+    centerY() {
+        return this.top() + this.height()/2;
+    }
+
+    centerWithin(rect) {
+        return this.centerX() >= rect.left() && this.centerX() <= rect.left() + rect.width() &&
+                this.centerY() >= rect.top() && this.centerY() <= rect.top() + rect.height();
+    }
+}
+
 function ajax() {
     return new AJAX();
 }
@@ -162,19 +192,31 @@ function onItemMouseDown(e, item) {
         item.info.x = parseInt(item.style.left);
         item.info.y = parseInt(item.style.top);
 
-        ajax().postJSON(window.location.pathname + '/update', item.info);
+        ajax().postJSON(`${window.location.pathname}/update`, item.info);
     }
 
     document.addEventListener('mousemove', onMouseMove);
 
     document.addEventListener('mouseup', () => {
-        console.info('DEBUG mouse up: ', item.info);
-        ajax().postJSON(window.location.pathname + '/update', item.info);
+        // console.info(`DEBUG item id=${item.id} mouse up:`, item.info);
+        ajax().postJSON(`${window.location.pathname}/update`, item.info);
+
+        if (item.info.class == 'chip') {
+            // XXX: accountChip has to be called in exactly in this handler.
+            // Otherwise the following situation will not be handled correctly:
+            // - when a chip that is being dragged stops under another chip.
+            // In this case the event will be called with the top most item with
+            // regard to z-index.
+            const slots = document.querySelectorAll('.player_slot');
+            accountChip(item, slots);
+            slots.forEach(updateSlotsWithMoney);
+        }
         document.removeEventListener('mousemove', onMouseMove);
     }, { once: true });
 }
 
 function onCardDblClick(e, card) {
+    console.log('DEBUG onCardDblClick', e.button);
     if (e.button != BUTTON_LEFT) {
         return;
     }
@@ -277,11 +319,45 @@ function newCard(info, x, y) {
     return card;
 }
 
+function accountChip(chip, slots) {
+    if (chip == null) {
+        return;
+    }
+    const rect = new Rect(chip);
+    // console.log(`DEBUG chip id=${chip.id} accountChip`);
+    for (let slot of slots) {
+        if (slot.chips == null) {
+            continue;
+        }
+        slotRect = new Rect(slot);
+        if (chip.id in slot.chips) {
+            delete slot.chips[chip.id];
+        }
+        if (rect.centerWithin(slotRect)) {
+            slot.chips[chip.id] = chip;
+            // console.log(`${chip.info.class} id=${chip.id} within player ${slot.dataset.index} slot`);
+        } else {
+            // console.log(`${chip.info.class} id=${chip.id} outside of any player slot`);
+        }
+    }
+}
+
 function newChip(info, x, y) {
     const chip = newItem('chip', info, x, y);
     chip.classList.add(`chip-${info.color}`);
     chip.innerText = info.val;
+
     return chip;
+}
+
+function updateSlotsWithMoney(slot) {
+    if (slot.chips == null || slot.playerElem == null) {
+        return;
+    }
+    const vals = Object.values(slot.chips).map(chip => chip.info.val);
+    const total = vals.reduce((s, x) => s + x, 0);;
+    const player = players[slot.playerElem.info.owner_id];
+    slot.playerElem.innerText = `${player.Name}: ${total}$`;
 }
 
 function newDealer(info, x, y) {
@@ -296,6 +372,10 @@ function newPlayer(info, x, y) {
     const player = players[info.owner_id];
     item.classList.add(player.skin);
     item.innerText = player.Name;
+
+    const slot = document.getElementById(`slot-${player.index}`);
+    slot.playerElem = item;
+    slot.chips = {};
 
     item.render = () => {
         // HACK
@@ -322,10 +402,20 @@ function updateItem(src) {
 }
 
 function updateTable(resp) {
+    const chips = [];
     players = resp.Players;
     for (let it of resp.Items) {
         updateItem(it);
+        if (it.class == 'chip') {
+            chips.push(it);
+        }
     }
+    const slots = document.querySelectorAll('.player_slot');
+    for (let it of chips) {
+        const item = document.getElementById(`item-${it.id}`);
+        accountChip(item, slots);
+    }
+    slots.forEach(updateSlotsWithMoney);
 }
 
 function refresh(items) {
@@ -387,9 +477,6 @@ function createItem(info) {
     table.appendChild(item);
     return item;
 }
-
-let isKeyTPressed = false;
-let isKeyOPressed = false;
 
 function isKeyPressed(e, key) {
     try {

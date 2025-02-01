@@ -122,6 +122,8 @@ nav a:hover {
     height: 70px;
 
     user-select: none;
+
+    z-index: 1;
 }
 
 .chip:active {
@@ -148,6 +150,17 @@ nav a:hover {
     background-image: url('/static/chip-black.png');
 }
 
+.player_slot {
+    border: 2px dashed white;
+    position: absolute;
+    background-color: transparent;
+    border-radius: 8px;
+    /* border-radius: 50%; /1* Make it circular *1/ */
+
+    width: 300px;
+    height: 200px;
+}
+
 .dealer {
     position: absolute;
 
@@ -172,8 +185,8 @@ nav a:hover {
     font-weight: bold;
     text-align: center;
 
-    width: 85px;
-    height: 85px;
+    width: 90px;
+    height: 90px;
 
     user-select: none;
     z-index: 1000;
@@ -187,15 +200,15 @@ nav a:hover {
 .player {
     position: absolute;
 
-    background-color: white;
+    background-color: transparent;
     /* background-image: url('/static/player.png'); */
     /* opacity: 1; */
 
-    border: 1px solid;
-    border-color: black;
-    border-radius: 50%; /* Make it circular */
+    /* border: 1px solid; */
+    /* border-color: black; */
+    /* border-radius: 50%; /1* Make it circular *1/ */
 
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3); /* Add a 3D effect */
+    /* box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3); /1* Add a 3D effect *1/ */
 
     color: black;
     display: flex;
@@ -203,7 +216,7 @@ nav a:hover {
     align-items: center;
     justify-content: center;
 
-    font-size: 24px;
+    font-size: 28px;
     /*font-family: "Comic Sans MS", "Brush Script MT", cursive;*/
     font-family: "Copperplate", "Papyrus", fantasy;
     font-weight: bold;
@@ -213,8 +226,10 @@ nav a:hover {
 
     user-select: none;
 
-    width: 85px;
-    height: 85px;
+    width: 90px;
+    height: 90px;
+
+    z-index: 0;
 }
 
 /*
@@ -228,16 +243,31 @@ nav a:hover {
     left: 20px
 }
 
+.player_slot_0 {
+    top: 560px;
+    left: 0px;
+}
+
 .player_1 {
     color: #9B59B6; /* Purple */
     top: 20px;
     left: 920px
 }
 
+.player_slot_1 {
+    top: 0px;
+    left: 720px;
+}
+
 .player_2 {
     color: #2ECC71; /* Green */
     top: 660px;
     left: 920px
+}
+
+.player_slot_2 {
+    top: 560px;
+    left: 720px;
 }
 
 .owned {

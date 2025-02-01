@@ -121,6 +121,9 @@ type Player struct {
 	// Skin represents a personalised style of this player
 	Skin string `json:"skin"`
 
+	// Index represents player index in slots
+	Index int `json:"index"`
+
 	// subscriptions map[uuid.UUID]chan Event
 	updates chan Event
 }
@@ -253,9 +256,10 @@ func (r *Room) Shuffle() *Room {
 
 // Join joins a user
 func (r *Room) Join(u *User) *Room {
-	n := len(r.Players) % len(PlayerColors)
-	p := newPlayer(u, PlayerColors[n])
-	p.Skin = fmt.Sprintf("player_%d", n)
+	index := len(r.Players) % len(PlayerColors)
+	p := newPlayer(u, PlayerColors[index])
+	p.Index = index
+	p.Skin = fmt.Sprintf("player_%d", index)
 	r.Players[u.ID] = p
 	r.Items = append(r.Items, NewTableItem(len(r.Items), 0, 0).AsPlayer(p))
 	return r
