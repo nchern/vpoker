@@ -450,5 +450,5 @@ function onLoad() {
                 console.log(event.data);
             }
         };
-    }).get(`${window.location.pathname}/state`);
+    }).get(`${window.location.pathname}/state?cw=${window.screen.availWidth}&ch=${window.screen.availHeight}`);
 }
