@@ -96,10 +96,9 @@ type Chip struct {
 type PushType string
 
 const (
-	UpdateAll  PushType = "update_all"
-	UpdateItem PushType = "update_item"
-	Refresh    PushType = "refresh"
-	// PlayerJoined Event = "player_joined"
+	UpdateItems  PushType = "update_items"
+	Refresh      PushType = "refresh"
+	PlayerJoined PushType = "player_joined"
 )
 
 // Push represents a push event that happens in the game and
@@ -107,17 +106,35 @@ const (
 type Push struct {
 	Type PushType `json:"type"`
 
-	Item *TableItem `json:"item"`
+	Items []*TableItem `json:"items"`
 
-	Room *Room `json:"room"`
+	Players map[uuid.UUID]*Player `json:"players"`
 }
 
-func NewPushItem(it *TableItem) *Push {
-	return &Push{Type: UpdateItem, Item: it}
+// DeepCopy creates a deep copy of this push via serialisation
+func (p *Push) DeepCopy() (*Push, error) {
+	var dest *Push
+	b, err := json.Marshal(&p)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(b, &dest); err != nil {
+		return nil, err
+	}
+	return dest, nil
 }
 
-func NewPushAll(room *Room) *Push {
-	return &Push{Type: UpdateAll, Room: room}
+func NewPushItems(items ...*TableItem) *Push {
+	return &Push{Type: UpdateItems, Items: items}
+}
+
+func NewPushPlayerJoined(players map[uuid.UUID]*Player, items ...*TableItem) *Push {
+	return &Push{
+		Type: PlayerJoined,
+
+		Items:   items,
+		Players: players,
+	}
 }
 
 func NewPushRefresh() *Push { return &Push{Type: Refresh} }
@@ -192,10 +209,10 @@ type CardList []*Card
 // Room represents a poker room
 type Room struct {
 	// ID of this room
-	ID uuid.UUID
+	ID uuid.UUID `json:"id"`
 
 	// Players represent players in this room
-	Players map[uuid.UUID]*Player
+	Players map[uuid.UUID]*Player `json:"players"`
 
 	// Deck represents a deck of cards on the table
 	Deck CardList `json:"-"`
@@ -204,7 +221,7 @@ type Room struct {
 	Chips []*Chip `json:"-"`
 
 	// Items on the table
-	Items TableItemList
+	Items TableItemList `json:"items"`
 
 	lock sync.RWMutex
 }
@@ -236,7 +253,7 @@ func shuffle(items []*TableItem) {
 	}
 }
 
-// StartGame rearaanges all the objects on the table to the initial state
+// StartGame rearranges all the objects on the table to the initial state
 func (r *Room) StartGame() *Room {
 	id := 0
 	for _, c := range r.Deck {
@@ -275,16 +292,18 @@ func (r *Room) Shuffle() *Room {
 }
 
 // Join joins a user
-func (r *Room) Join(u *User) *Room {
+func (r *Room) Join(u *User) *TableItem {
 	index := len(r.Players) % len(PlayerColors)
 	p := newPlayer(u, PlayerColors[index])
 	p.Index = index
 	p.Skin = fmt.Sprintf("player_%d", index)
 	r.Players[u.ID] = p
-	r.Items = append(r.Items, NewTableItem(len(r.Items), 0, 0).AsPlayer(p))
-	return r
+	item := NewTableItem(len(r.Items), 0, 0).AsPlayer(p)
+	r.Items = append(r.Items, item)
+	return item
 }
 
+// OtherPlayers returns all players but a given
 func (r *Room) OtherPlayers(current *User) PlayerList {
 	var others PlayerList
 	for _, p := range r.Players {
@@ -408,3 +427,23 @@ func (ti *TableItem) IsOwnedBy(id uuid.UUID) bool {
 
 // IsOwned checks if this item is owned by anyone
 func (ti *TableItem) IsOwned() bool { return ti.OwnerID != "" }
+
+// ApplyVisibilityRules evaluates visibility for fields of this item
+// Currently it works for cards only preventing non owners to obtain
+// information about card rank and suit.
+func (ti *TableItem) ApplyVisibilityRules(curUser *User) {
+	if !ti.Is(CardClass) {
+		return // do nothing if this is not a card
+	}
+	if ti.IsOwnedBy(curUser.ID) {
+		ti.Side = Face // owners always see their cards
+	}
+	isOwnedBySomeoneElse := ti.IsOwned() && !ti.IsOwnedBy(curUser.ID)
+	if isOwnedBySomeoneElse {
+		ti.Side = Cover // if a card is owned by someone, others always see their card cover
+	}
+	if ti.Side == Cover {
+		ti.Rank = ""
+		ti.Suit = BlankSuit
+	}
+}

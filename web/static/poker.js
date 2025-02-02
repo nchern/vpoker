@@ -377,10 +377,9 @@ function updateItem(src) {
     item.render();
 }
 
-function updateTable(resp) {
+function updateItems(items) {
     const chips = [];
-    players = resp.Players;
-    for (let it of resp.Items) {
+    for (let it of items) {
         updateItem(it);
         if (it.class == 'chip') {
             chips.push(it);
@@ -392,6 +391,11 @@ function updateTable(resp) {
         accountChip(item, slots);
     }
     slots.forEach(updateSlotsWithMoney);
+}
+
+function updateTable(resp) {
+    players = resp.players;
+    updateItems(resp.items);
 }
 
 function refresh(items) {
@@ -484,8 +488,11 @@ function onLoad() {
                 return;
             }
             switch (resp.type) {
-            case 'update_all':
-                updateTable(resp.room);
+            case 'player_joined':
+                updateTable(resp);
+                break;
+            case 'update_items':
+                updateItems(resp.items);
                 break;
             case 'refresh':
                 location.reload();

@@ -266,7 +266,6 @@ func (s *server) loadState() error {
 }
 
 func handlePush(ctx *Context, conn *websocket.Conn, update *poker.Push) error {
-	logger.Debug.Printf("ws %s push_begin: %s", ctx, update)
 	if update == nil {
 		// channel closed, teminating this update loop
 		logger.Info.Printf("ws %s web socket connection terminated", ctx)
@@ -276,26 +275,18 @@ func handlePush(ctx *Context, conn *websocket.Conn, update *poker.Push) error {
 		}
 		return errChanClosed
 	}
-	if err := conn.WriteJSON(update); err != nil {
+	logger.Debug.Printf("ws %s push_begin: %s", ctx, update.Type)
+	resp, err := update.DeepCopy()
+	if err != nil {
+		return err
+	}
+	for _, it := range resp.Items {
+		it.ApplyVisibilityRules(ctx.user)
+	}
+	if err := conn.WriteJSON(resp); err != nil {
 		return fmt.Errorf("conn.WriteJSON: %w", err)
 	}
-	// switch update.Type {
-	// case poker.UpdateAll:
-	// 	// logger.Debug.Printf("ws %s getRoomState.begin: %s", ctx, update)
-	// 	state, err := getRoomState(ctx.user, ctx.room)
-	// 	if err != nil {
-	// 		return fmt.Errorf("getRoomState: %w", err)
-	// 	}
-	// 	// logger.Debug.Printf("ws %s getRoomState.finish: %s", ctx, update)
-	// 	if err := conn.WriteJSON(state); err != nil {
-	// 		return fmt.Errorf("conn.WriteJSON: %w", err)
-	// 	}
-	// case poker.Refresh:
-	// 	if err := conn.WriteJSON(update); err != nil {
-	// 		return fmt.Errorf("conn.WriteMessage(Refresh): %w", err)
-	// 	}
-	// }
-	logger.Debug.Printf("%s push_finished: %s", ctx, update)
+	logger.Debug.Printf("%s push_finished: %s", ctx, update.Type)
 	return nil
 }
 
@@ -379,7 +370,7 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	var updated *poker.TableItem
+	var updated poker.TableItem
 	var notifyThem poker.PlayerList
 	if err := ctx.room.Update(func(rm *poker.Room) error {
 		if rm.Players[ctx.user.ID] == nil {
@@ -406,19 +397,15 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 		}
 		item.OwnerID = ""
 		item.Side = poker.Face
-		updated = item
+		updated = *item
 		notifyThem = rm.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
-	state, err := getRoomState(ctx.user, ctx.room)
-	if err != nil {
-		return nil, fmt.Errorf("getRoomState: %w", err)
-	}
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(poker.NewPushAll(state))
-	return httpx.JSON(http.StatusOK, &ItemUpdatedResponse{Updated: updated}), nil
+	notifyThem.NotifyAll(poker.NewPushItems(&updated))
+	return httpx.JSON(http.StatusOK, &ItemUpdatedResponse{Updated: &updated}), nil
 }
 
 func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
@@ -460,12 +447,8 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	updated.Side = poker.Face
-	state, err := getRoomState(ctx.user, ctx.room)
-	if err != nil {
-		return nil, fmt.Errorf("getRoomState: %w", err)
-	}
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(poker.NewPushAll(state))
+	notifyThem.NotifyAll(poker.NewPushItems(&updated))
 	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: &updated}), nil
 }
 
@@ -551,12 +534,13 @@ func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
 	}
 	curUser, room := ctx.user, ctx.room
 	var notifyThem poker.PlayerList
-	var updated *poker.TableItem
+	var updated poker.TableItem
 	if err := room.Update(func(rm *poker.Room) error {
-		updated, err = updateItem(ctx, r)
+		up, err := updateItem(ctx, r)
 		if err != nil {
 			return err
 		}
+		updated = *up
 		// collect players to push updates to
 		// push itself must happen outside room lock in order to avoid deadlocks
 		notifyThem = room.OtherPlayers(curUser)
@@ -566,12 +550,8 @@ func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
 	}
 	logger.Debug.Printf("%s update dest=%+v", ctx, updated)
 	// push updates: potentially long operation - check
-	state, err := getRoomState(ctx.user, ctx.room)
-	if err != nil {
-		return nil, fmt.Errorf("getRoomState: %w", err)
-	}
-	notifyThem.NotifyAll(poker.NewPushAll(state))
-	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: updated}), nil
+	notifyThem.NotifyAll(poker.NewPushItems(&updated))
+	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: &updated}), nil
 }
 
 func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
@@ -579,6 +559,8 @@ func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	var players map[uuid.UUID]*poker.Player
+	var updated *poker.TableItem
 	var notifyThem poker.PlayerList
 	if err := ctx.room.Update(func(rm *poker.Room) error {
 		hasJoined := rm.Players[ctx.user.ID] != nil
@@ -589,7 +571,8 @@ func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
 		if len(rm.Players) >= maxPlayers {
 			return httpx.NewError(http.StatusForbidden, "this room is full")
 		}
-		rm.Join(ctx.user)
+		updated = rm.Join(ctx.user)
+		players = rm.Players
 		notifyThem = rm.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
@@ -597,11 +580,7 @@ func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
 	}
 	// push updates: potentially long operation - check
 	// notifyThem.NotifyAll(poker.PlayerJoined)
-	state, err := getRoomState(ctx.user, ctx.room)
-	if err != nil {
-		return nil, fmt.Errorf("getRoomState: %w", err)
-	}
-	notifyThem.NotifyAll(poker.NewPushAll(state))
+	notifyThem.NotifyAll(poker.NewPushPlayerJoined(players, updated))
 	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.room.ID)), nil
 }
 
@@ -649,17 +628,7 @@ func getRoomState(curUser *poker.User, room *poker.Room) (*poker.Room, error) {
 		return nil, err
 	}
 	for _, it := range roomCopy.Items {
-		if it.IsOwnedBy(curUser.ID) && it.Is(poker.CardClass) {
-			it.Side = poker.Face // owners always see their cards
-		}
-		isOwnedBySomeoneElse := it.IsOwned() && !it.IsOwnedBy(curUser.ID)
-		if isOwnedBySomeoneElse && it.Is(poker.CardClass) {
-			it.Side = poker.Cover // if a card is owned by someone, others always see their card cover
-		}
-		if it.Side == poker.Cover {
-			it.Rank = ""
-			it.Suit = poker.BlankSuit
-		}
+		it.ApplyVisibilityRules(curUser)
 	}
 	return roomCopy, nil
 }
@@ -799,6 +768,7 @@ func handleSignalsLoop(srv *server) {
 // TODO_FEAT: add chips when player joins - automate arrangements
 // TODO_FEAT: handle online / offline / web socket reconnect when a user comes back to a page
 // TODO_FEAT: periodic state save
+// TODO_FEAT: add mobile support: touch / tap handling
 func main() {
 	s := &server{
 		endpoint: ":8080",
