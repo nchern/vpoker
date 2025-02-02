@@ -34,7 +34,7 @@ func init() {
 
 const (
 	maxPlayers      = 3
-	cookieExpiresAt = 5 * 24 * time.Hour
+	cookieExpiresAt = 30 * 24 * time.Hour
 
 	statePath = "/tmp/vpoker.json"
 )
