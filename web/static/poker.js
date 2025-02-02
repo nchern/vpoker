@@ -475,16 +475,23 @@ function onLoad() {
         socket.onerror = (err) => { console.error('websocket error:', err); };
         socket.onmessage = (event) => {
             // console.log('websocket message:', typeof event.data);
+            let resp = null;
             try {
                 resp = JSON.parse(event.data)
-                updateTable(resp);
             } catch (e) {
-                // non-JSON payload
-                if (event.data === 'refresh') {
-                    location.reload();
-                    return;
-                }
-                console.log(event.data);
+                // non-JSON payload?
+                console.log("push error:",e, event.data);
+                return;
+            }
+            switch (resp.type) {
+            case 'update_all':
+                updateTable(resp.room);
+                break;
+            case 'refresh':
+                location.reload();
+                break;
+            default:
+                console.log("push unknown:", resp);
             }
         };
     }).get(`${window.location.pathname}/state?cw=${window.screen.availWidth}&ch=${window.screen.availHeight}`);

@@ -92,21 +92,42 @@ type Chip struct {
 	Val   int   `json:"val"`
 }
 
-// Event represents an event that happens during the game
-type Event string
+// PushType represents a push type
+type PushType string
 
 const (
-	UpdateAll Event = "update_all"
-	Refresh   Event = "refresh"
+	UpdateAll  PushType = "update_all"
+	UpdateItem PushType = "update_item"
+	Refresh    PushType = "refresh"
 	// PlayerJoined Event = "player_joined"
 )
 
+// Push represents a push event that happens in the game and
+// carries objects to push to a client
+type Push struct {
+	Type PushType `json:"type"`
+
+	Item *TableItem `json:"item"`
+
+	Room *Room `json:"room"`
+}
+
+func NewPushItem(it *TableItem) *Push {
+	return &Push{Type: UpdateItem, Item: it}
+}
+
+func NewPushAll(room *Room) *Push {
+	return &Push{Type: UpdateAll, Room: room}
+}
+
+func NewPushRefresh() *Push { return &Push{Type: Refresh} }
+
 type PlayerList []*Player
 
-func (pl PlayerList) NotifyAll(e Event) {
+func (pl PlayerList) NotifyAll(push *Push) {
 	for _, p := range pl {
 		// logger.Debug.Printf("recepient=%s send_push_begin", p.Name)
-		p.Dispatch(e)
+		p.Dispatch(push)
 		// logger.Debug.Printf("recepient=%s send_push_finish", p.Name)
 	}
 }
@@ -124,8 +145,7 @@ type Player struct {
 	// Index represents player index in slots
 	Index int `json:"index"`
 
-	// subscriptions map[uuid.UUID]chan Event
-	updates chan Event
+	updates chan *Push
 }
 
 func newPlayer(u *User, c Color) *Player {
@@ -136,20 +156,20 @@ func newPlayer(u *User, c Color) *Player {
 }
 
 // Dispatch sends an update to this player
-func (p *Player) Dispatch(update Event) *Player {
+func (p *Player) Dispatch(push *Push) *Player {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Error.Printf("Player.Dispatch name=%s panic: %s", p.Name, r)
 		}
 	}()
 	if p.updates != nil {
-		p.updates <- update
+		p.updates <- push
 	}
 	return p
 }
 
 // Subscribe subscribes this player to async updates
-func (p *Player) Subscribe(updates chan Event) *Player {
+func (p *Player) Subscribe(updates chan *Push) *Player {
 	if p.updates != nil {
 		close(p.updates)
 	}

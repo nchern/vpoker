@@ -265,10 +265,9 @@ func (s *server) loadState() error {
 	return nil
 }
 
-func handlePush(ctx *Context, conn *websocket.Conn, update poker.Event) error {
+func handlePush(ctx *Context, conn *websocket.Conn, update *poker.Push) error {
 	logger.Debug.Printf("ws %s push_begin: %s", ctx, update)
-	switch update {
-	case "":
+	if update == nil {
 		// channel closed, teminating this update loop
 		logger.Info.Printf("ws %s web socket connection terminated", ctx)
 		if err := conn.WriteMessage(
@@ -276,21 +275,26 @@ func handlePush(ctx *Context, conn *websocket.Conn, update poker.Event) error {
 			logger.Error.Printf("%s conn.WriteMessage %s", ctx, err)
 		}
 		return errChanClosed
-	case poker.UpdateAll:
-		// logger.Debug.Printf("ws %s getRoomState.begin: %s", ctx, update)
-		state, err := getRoomState(ctx.user, ctx.room)
-		if err != nil {
-			return fmt.Errorf("getRoomState: %w", err)
-		}
-		// logger.Debug.Printf("ws %s getRoomState.finish: %s", ctx, update)
-		if err := conn.WriteJSON(state); err != nil {
-			return fmt.Errorf("conn.WriteJSON: %w", err)
-		}
-	case poker.Refresh:
-		if err := conn.WriteMessage(websocket.TextMessage, []byte(update)); err != nil {
-			return fmt.Errorf("conn.WriteMessage(Refresh): %w", err)
-		}
 	}
+	if err := conn.WriteJSON(update); err != nil {
+		return fmt.Errorf("conn.WriteJSON: %w", err)
+	}
+	// switch update.Type {
+	// case poker.UpdateAll:
+	// 	// logger.Debug.Printf("ws %s getRoomState.begin: %s", ctx, update)
+	// 	state, err := getRoomState(ctx.user, ctx.room)
+	// 	if err != nil {
+	// 		return fmt.Errorf("getRoomState: %w", err)
+	// 	}
+	// 	// logger.Debug.Printf("ws %s getRoomState.finish: %s", ctx, update)
+	// 	if err := conn.WriteJSON(state); err != nil {
+	// 		return fmt.Errorf("conn.WriteJSON: %w", err)
+	// 	}
+	// case poker.Refresh:
+	// 	if err := conn.WriteJSON(update); err != nil {
+	// 		return fmt.Errorf("conn.WriteMessage(Refresh): %w", err)
+	// 	}
+	// }
 	logger.Debug.Printf("%s push_finished: %s", ctx, update)
 	return nil
 }
@@ -305,7 +309,7 @@ func (s *server) pushRoomUpdates(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return nil, err
 		}
-		updates := make(chan poker.Event)
+		updates := make(chan *poker.Push)
 		var p *poker.Player
 		if err := ctx.room.Update(func(rm *poker.Room) error {
 			p = rm.Players[ctx.user.ID]
@@ -366,7 +370,7 @@ func (s *server) shuffle(r *http.Request) (*httpx.Response, error) {
 	}
 	// notify others
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(poker.Refresh)
+	notifyThem.NotifyAll(poker.NewPushRefresh())
 	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.room.ID)), nil
 }
 
@@ -408,8 +412,12 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 	}); err != nil {
 		return nil, err
 	}
+	state, err := getRoomState(ctx.user, ctx.room)
+	if err != nil {
+		return nil, fmt.Errorf("getRoomState: %w", err)
+	}
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(poker.UpdateAll)
+	notifyThem.NotifyAll(poker.NewPushAll(state))
 	return httpx.JSON(http.StatusOK, &ItemUpdatedResponse{Updated: updated}), nil
 }
 
@@ -452,8 +460,12 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	updated.Side = poker.Face
+	state, err := getRoomState(ctx.user, ctx.room)
+	if err != nil {
+		return nil, fmt.Errorf("getRoomState: %w", err)
+	}
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(poker.UpdateAll)
+	notifyThem.NotifyAll(poker.NewPushAll(state))
 	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: &updated}), nil
 }
 
@@ -554,7 +566,11 @@ func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
 	}
 	logger.Debug.Printf("%s update dest=%+v", ctx, updated)
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(poker.UpdateAll)
+	state, err := getRoomState(ctx.user, ctx.room)
+	if err != nil {
+		return nil, fmt.Errorf("getRoomState: %w", err)
+	}
+	notifyThem.NotifyAll(poker.NewPushAll(state))
 	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: updated}), nil
 }
 
@@ -581,7 +597,11 @@ func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
 	}
 	// push updates: potentially long operation - check
 	// notifyThem.NotifyAll(poker.PlayerJoined)
-	notifyThem.NotifyAll(poker.UpdateAll)
+	state, err := getRoomState(ctx.user, ctx.room)
+	if err != nil {
+		return nil, fmt.Errorf("getRoomState: %w", err)
+	}
+	notifyThem.NotifyAll(poker.NewPushAll(state))
 	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.room.ID)), nil
 }
 
