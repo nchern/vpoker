@@ -777,6 +777,8 @@ func handleSignalsLoop(srv *server) {
 // TODO: decide what to do with abandoned rooms. Now they not only stay in memory but also
 // keep websocket groutines/channels forever
 // TODO_FEAT: add chips when player joins - automate arrangements
+// TODO_FEAT: handle online / offline / web socket reconnect when a user comes back to a page
+// TODO_FEAT: periodic state save
 func main() {
 	s := &server{
 		endpoint: ":8080",

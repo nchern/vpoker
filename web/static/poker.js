@@ -2,9 +2,6 @@
 const FACE = 'face';
 const COVER = 'cover';
 
-const suits = ['♠', '♥', '♦', '♣']; // Spades, Hearts, Diamonds, Clubs
-const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-
 const BUTTON_LEFT = 0;
 
 let players = {};
@@ -151,27 +148,6 @@ function ajax() {
     return new AJAX();
 }
 
-function generateChips() {
-    const chips = [];
-    const types = [{val: 5, color:'red'}, {val: 10, color: 'blue'}];
-    for (let t of types) {
-        for (let i = 0; i < 10; i++) {
-            chips.push({val:t.val, color: t.color});
-        }
-    }
-    return chips;
-}
-
-function generateCards() {
-    const deck = [];
-    for (let suit of suits) {
-        for (let rank of ranks) {
-            deck.push({ rank: rank, suit: suit, side: COVER });
-        }
-    }
-    return deck.sort(() => 0.5 - Math.random());
-}
-
 function onItemMouseDown(e, item) {
     if (e.button != BUTTON_LEFT) {
         return;
@@ -213,24 +189,6 @@ function onItemMouseDown(e, item) {
         }
         document.removeEventListener('mousemove', onMouseMove);
     }, { once: true });
-}
-
-function onCardDblClick(e, card) {
-    console.log('DEBUG onCardDblClick', e.button);
-    if (e.button != BUTTON_LEFT) {
-        return;
-    }
-    if (card.info.owner_id != '' && card.info.owner_id != getSession().user_id) {
-        return; // can't turn other player cards cards
-    }
-    card.info.side = card.info.side == COVER ? FACE: COVER;
-    ajax().success((resp) => {
-        if (resp.updated == null) {
-            return;
-        }
-        card.info = resp.updated;
-        updateItem(resp.updated);
-    }).postJSON(`${window.location.pathname}/update`, card.info)
 }
 
 function newItem(cls, info, x, y) {
@@ -299,6 +257,24 @@ function showCard(card) {
         {'id': card.info.id});
 }
 
+function onCardDblClick(e, card) {
+    console.log('DEBUG onCardDblClick', e.button);
+    if (e.button != BUTTON_LEFT) {
+        return;
+    }
+    if (card.info.owner_id != '' && card.info.owner_id != getSession().user_id) {
+        return; // can't turn other player cards cards
+    }
+    card.info.side = card.info.side == COVER ? FACE: COVER;
+    ajax().success((resp) => {
+        if (resp.updated == null) {
+            return;
+        }
+        card.info = resp.updated;
+        updateItem(resp.updated);
+    }).postJSON(`${window.location.pathname}/update`, card.info)
+}
+
 function newCard(info, x, y) {
     const card = newItem('card', info, x, y);
     card.addEventListener('click', (e) => {
@@ -350,16 +326,6 @@ function newChip(info, x, y) {
     return chip;
 }
 
-function updateSlotsWithMoney(slot) {
-    if (slot.chips == null || slot.playerElem == null) {
-        return;
-    }
-    const vals = Object.values(slot.chips).map(chip => chip.info.val);
-    const total = vals.reduce((s, x) => s + x, 0);;
-    const player = players[slot.playerElem.info.owner_id];
-    slot.playerElem.innerText = `${player.Name}: ${total}$`;
-}
-
 function newDealer(info, x, y) {
     const item = newItem('dealer', info, x, y);
     item.innerText = 'Dealer';
@@ -384,6 +350,16 @@ function newPlayer(info, x, y) {
     };
     item.render();
     return item;
+}
+
+function updateSlotsWithMoney(slot) {
+    if (slot.chips == null || slot.playerElem == null) {
+        return;
+    }
+    const vals = Object.values(slot.chips).map(chip => chip.info.val);
+    const total = vals.reduce((s, x) => s + x, 0);;
+    const player = players[slot.playerElem.info.owner_id];
+    slot.playerElem.innerText = `${player.Name}: ${total}$`;
 }
 
 function updateItem(src) {
@@ -427,32 +403,6 @@ function refresh(items) {
         }
         console.error('refersh', status, msg);
     }).get(`${window.location.pathname}/state`);
-}
-
-function mkTableLocally(deck, chips) {
-    let startX = 10;
-    let startY = 170;
-    // Add cards to the table
-    const table = document.getElementById('card-table');
-    deck.forEach((info) => {
-        table.appendChild(newCard(info, startX, startY));
-        startX += 1;
-    });
-    if (chips.length <1) {
-        return;
-    }
-    let prev = chips[0];
-    startX = 10;
-    startY = 50;
-    chips.forEach((info) => {
-        if (prev.color != info.color) {
-            startX += 100;
-        }
-        table.appendChild(newChip(info, startX, startY));
-
-        startX += 5;
-        prev = info;
-    });
 }
 
 function createItem(info) {
