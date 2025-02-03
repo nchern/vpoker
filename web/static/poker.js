@@ -117,6 +117,8 @@ class AJAX {
     }
 }
 
+function ajax() { return new AJAX() };
+
 // Rect represents a rect over an HTML element
 class Rect {
     constructor(item) {
@@ -144,8 +146,36 @@ class Rect {
     }
 }
 
-function ajax() {
-    return new AJAX();
+function handleItemDrop(item) {
+    const slots = document.querySelectorAll('.player_slot');
+    switch (item.info.class) {
+    case 'chip':
+        // XXX: accountChip has to be called in exactly in this handler.
+        // Otherwise the following situation will not be handled correctly:
+        // - when a chip that is being dragged stops under another chip.
+        // In this case the event will be called with the top most item with
+        // regard to z-index.
+        accountChip(item, slots);
+        slots.forEach(updateSlotsWithMoney);
+        break;
+    case 'card':
+        const rect = new Rect(item);
+        // console.log(`DEBUG chip id=${chip.id} accountChip`);
+        for (let slot of slots) {
+            if (slot.playerElem == null || slot.playerElem === undefined) {
+                continue;
+            }
+            const owner_id = slot.playerElem.info.owner_id;
+            if (getSession().user_id != owner_id) {
+                continue
+            }
+            const slotRect = new Rect(slot);
+            if (rect.centerWithin(slotRect)) {
+                takeCard(item);
+            }
+        }
+        break;
+    }
 }
 
 function onItemMouseDown(e, item) {
@@ -170,23 +200,12 @@ function onItemMouseDown(e, item) {
 
         ajax().postJSON(`${window.location.pathname}/update`, item.info);
     }
-
     document.addEventListener('mousemove', onMouseMove);
 
     document.addEventListener('mouseup', () => {
-        // console.info(`DEBUG item id=${item.id} mouse up:`, item.info);
         ajax().postJSON(`${window.location.pathname}/update`, item.info);
-
-        if (item.info.class == 'chip') {
-            // XXX: accountChip has to be called in exactly in this handler.
-            // Otherwise the following situation will not be handled correctly:
-            // - when a chip that is being dragged stops under another chip.
-            // In this case the event will be called with the top most item with
-            // regard to z-index.
-            const slots = document.querySelectorAll('.player_slot');
-            accountChip(item, slots);
-            slots.forEach(updateSlotsWithMoney);
-        }
+        handleItemDrop(item);
+        // cleanup for this drag-n-drop
         document.removeEventListener('mousemove', onMouseMove);
     }, { once: true });
 }
