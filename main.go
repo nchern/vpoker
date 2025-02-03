@@ -794,10 +794,10 @@ func main() {
 
 	h := func(fn httpx.RequestHandler) func(http.ResponseWriter, *http.Request) {
 		return httpx.H(func(r *http.Request) (*httpx.Response, error) {
-			if httpx.IsMobile(r) {
-				return httpx.String(http.StatusBadRequest,
-					"<h1>Mobile devices are not supported!</h1>"), nil
-			}
+			// if httpx.IsMobile(r) {
+			// 	return httpx.String(http.StatusBadRequest,
+			// 		"<h1>Mobile devices are not supported!</h1>"), nil
+			// }
 			return fn(r)
 		})
 	}
