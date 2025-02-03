@@ -27,7 +27,7 @@
         }
 
         button, .edit {
-            width: 260px; /* Ensuring equal width */
+            width: 290px; /* Ensuring equal width */
             text-align: center;
             display: block;
         }
@@ -66,18 +66,27 @@
             color: #888;
             opacity: 0.7;
         }
+
+        #legend {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
     </style>
 </head>
 <body>
     <nav>
         <a href="/" >Home</a>
-        <span id="greeting">Hello, {{ .Username }}!</span>
+        <span id="greeting">{{ .Username }}</span>
     </nav>
     <div id="content">
         <div id="card-table">
             <form action="/users/profile?ret_path={{ .Retpath }}" method="POST">
                 <!-- <label for="input-field">Edit name:</label> -->
-                <input 
+                <div id="legend">Change name:</div>
+                <input
                     class="edit"
                     type="text"
                     id="input-field"
