@@ -457,8 +457,6 @@ func (s *server) profile(r *http.Request) (*httpx.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctx := newContextBuilder(r.Context()).withUser(s, r)
-	logger.Info.Printf("%s", ctx)
 	return httpx.RenderFile(http.StatusOK, "web/profile.html", m{
 		"Retpath":  sanitizedRetpath(r.URL),
 		"Username": sess.user.Name,
@@ -710,7 +708,6 @@ func (s *server) index(r *http.Request) (*httpx.Response, error) {
 		return httpx.Redirect("/users/new").
 			SetCookie(newEmptySession()), nil
 	}
-	logger.Info.Printf("%s / session=%s user_id=%s", r.Method, cookie.Value, curUser.ID)
 
 	return httpx.RenderFile(http.StatusOK, "web/index.html", m{
 		"Username": curUser.Name,
