@@ -21,100 +21,48 @@ function getSession() {
 
 class AJAX {
     constructor() {
-        this.onSuccess = function(){};
-        this.onError = function(){};
+        this.successHandler = null;
+        this.errorHandler = null;
     }
 
-    success(onSuccess) {
-        this.onSuccess = onSuccess;
+    success(callback) {
+        this.successHandler = callback;
         return this;
     }
 
-    error(onError) {
-        this.onError = onError;
+    error(callback) {
+        this.errorHandler = callback;
         return this;
     }
 
-    get(url) {
-        const xhr = new XMLHttpRequest();
-        const onSuccess = this.onSuccess;
-        const onError = this.onError;
-        xhr.open('GET', url, true);
-        // Handle network-level errors
-        xhr.onerror = function () {
-            console.error('XHR network error: unable to complete the request');
-            onError(0, 'network error');
-        };
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState != 4) {
+    async request(method, url, body = null) {
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: body ? JSON.stringify(body) : null,
+            });
+            if (!response.ok) {
+                const err = new Error('HTTP error');
+                err.status = response.status;
+                err.body = response.text();
+                throw err;
+            }
+            const data = await response.json();
+            if (this.successHandler) {
+                this.successHandler(data);
+            }
+        } catch (error) {
+            if (this.errorHandler) {
+                this.errorHandler(error);
                 return;
             }
-            if (xhr.status === 0) {
-                return;
-            }
-            if (xhr.status === 200) {
-                const contentType = xhr.getResponseHeader('Content-Type');
-                if (contentType && contentType.includes('application/json')) {
-                    let resp = null;
-                    try {
-                        resp = JSON.parse(xhr.responseText)
-                    } catch (e) {
-                        console.error(`XHR JSON.parse error: unable to parse JSON: ${e.message}`);
-                        onError(-1, e.message);
-                        return;
-                    }
-                    onSuccess(resp);
-                    return;
-                }
-                onSuccess(xhr.responseText);
-                return;
-            }
-            // handle HTTP error
-            console.error(`XHR HTTP error: ${xhr.status}: ${xhr.statusText} ${url}`);
-            onError(xhr.status, xhr.responseText)
-        };
-        xhr.send();
+            console.error('AJAX.fetch error: ', error);
+        }
     }
 
-    postJSON(url, obj) {
-        const xhr = new XMLHttpRequest();
-        const onSuccess = this.onSuccess;
-        const onError = this.onError;
-        xhr.open('POST', url, true);
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        // Handle network-level errors
-        xhr.onerror = function () {
-            console.error('XHR network error: unable to complete the request');
-            onError(0, 'network error');
-        };
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState != 4) {
-                return;
-            }
-            if (xhr.status === 0) {
-                return;
-            }
-            if (xhr.status === 200) {
-                const contentType = xhr.getResponseHeader('Content-Type');
-                if (contentType && contentType.includes('application/json')) {
-                    try {
-                        onSuccess(JSON.parse(xhr.responseText));
-                    } catch (e) {
-                        console.error(`XHR JSON.parse error: unable to parse JSON: ${e.message}`);
-                        onError(-1, e.message);
-                    }
-                    return;
-                }
-                onSuccess(xhr.responseText);
-                return;
-            }
-            // handle HTTP error
-            console.error(`XHR HTTP error: ${xhr.status}: ${xhr.statusText}`);
-            onError(xhr.status, xhr.responseText)
-        };
-        // debug: console.info(`POST ${url} data:`, obj);
-        xhr.send(JSON.stringify(obj));
-    }
+    get(url) { this.request('GET', url); }
+    postJSON(url, obj) { this.request('POST', url, obj); }
 }
 
 function ajax() { return new AJAX() };
