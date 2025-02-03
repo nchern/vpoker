@@ -148,13 +148,13 @@ function onItemMouseDown(e, item) {
 
         ajax().postJSON(`${window.location.pathname}/update`, item.info);
     }
-    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('pointermove', onMouseMove);
 
-    document.addEventListener('mouseup', () => {
+    document.addEventListener('pointerup', () => {
         ajax().postJSON(`${window.location.pathname}/update`, item.info);
         handleItemDrop(item);
         // cleanup for this drag-n-drop
-        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('pointermove', onMouseMove);
     }, { once: true });
 }
 
@@ -169,7 +169,7 @@ function newItem(cls, info, x, y) {
 
     item.ondragstart = () => false;
     // Make the item draggable
-    item.addEventListener('mousedown', (e) => { onItemMouseDown(e, item); });
+    item.addEventListener('pointerdown', (e) => { onItemMouseDown(e, item); });
 
     item.render = () => {};
 
@@ -208,7 +208,7 @@ function takeCard(card) {
             updateItem(resp.updated);
         }
     }).postJSON(`${window.location.pathname}/take_card`,
-        {'id': card.info.id});
+        {id: card.info.id});
 }
 
 function showCard(card) {
@@ -221,7 +221,7 @@ function showCard(card) {
             updateItem(resp.updated);
         }
     }).postJSON(`${window.location.pathname}/show_card`,
-        {'id': card.info.id});
+        {id: card.info.id});
 }
 
 function onCardDblClick(e, card) {

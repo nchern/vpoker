@@ -78,6 +78,8 @@ nav a:hover {
     background-position: center;
     background-repeat: no-repeat; /* Prevent tiling of the image */
     background-size: 100% 100%; /* Scale to fit the div's width and height */
+
+    touch-action: none;
 }
 
 .card-cover {
@@ -124,6 +126,8 @@ nav a:hover {
     user-select: none;
 
     z-index: 1;
+
+    touch-action: none;
 }
 
 .chip:active {
