@@ -459,6 +459,44 @@ function isKeyPressed(e, key) {
     }
 }
 
+function listenPushes() {
+    const socket = new WebSocket(`ws://${window.location.host}${window.location.pathname}/listen`);
+    socket.onopen = () => {
+        console.log('websocket connected');
+        let banner = document.getElementById('offline-banner');
+        banner.style.display = 'none';
+    };
+    socket.onclose = () => {
+        console.log('websocket disconnected');
+        let banner = document.getElementById('offline-banner');
+        banner.style.display = 'block';
+    };
+    socket.onerror = (err) => { console.error('websocket error:', err); };
+    socket.onmessage = (event) => {
+        let resp = null;
+        try {
+            resp = JSON.parse(event.data)
+        } catch (e) {
+            // non-JSON payload?
+            console.log("push error:",e, event.data);
+            return;
+        }
+        switch (resp.type) {
+        case 'player_joined':
+            updateTable(resp);
+            break;
+        case 'update_items':
+            updateItems(resp.items);
+            break;
+        case 'refresh':
+            location.reload();
+            break;
+        default:
+            console.log("push unknown:", resp);
+        }
+    };
+}
+
 function onLoad() {
     document.addEventListener('keydown', (event) => {
         if (isKeyPressed(event, 't')) {
@@ -483,42 +521,7 @@ function onLoad() {
         // setInterval(() => {
         //     refresh();
         // }, 10000);
+        listenPushes();
 
-        const socket = new WebSocket(`ws://${window.location.host}${window.location.pathname}/listen`);
-        socket.onopen = () => {
-            console.log('websocket connected');
-            let banner = document.getElementById('offline-banner');
-            banner.style.display = 'none';
-        };
-        socket.onclose = () => {
-            console.log('websocket disconnected');
-            let banner = document.getElementById('offline-banner');
-            banner.style.display = 'block';
-        };
-        socket.onerror = (err) => { console.error('websocket error:', err); };
-        socket.onmessage = (event) => {
-            // console.log('websocket message:', typeof event.data);
-            let resp = null;
-            try {
-                resp = JSON.parse(event.data)
-            } catch (e) {
-                // non-JSON payload?
-                console.log("push error:",e, event.data);
-                return;
-            }
-            switch (resp.type) {
-            case 'player_joined':
-                updateTable(resp);
-                break;
-            case 'update_items':
-                updateItems(resp.items);
-                break;
-            case 'refresh':
-                location.reload();
-                break;
-            default:
-                console.log("push unknown:", resp);
-            }
-        };
     }).get(`${window.location.pathname}/state?cw=${window.screen.availWidth}&ch=${window.screen.availHeight}`);
 }
