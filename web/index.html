@@ -37,7 +37,7 @@
         button:hover {
             background-color: #660000; /* Darker Red */
         }
-        
+
         #greeting {
             font-size: 24px;
             font-weight: bold;
@@ -49,8 +49,8 @@
 </head>
 <body>
     <div id="content">
-        <div id="greeting">Hello, {{ .Username }}!</div>
         <div id="card-table">
+            <div id="greeting">Hello, {{ .Username }}!</div>
             <button onclick="window.location.href='/rooms/new'">New game</button>
             <button onclick="window.location.href='/users/profile'">Edit profile</button>
         </div>
