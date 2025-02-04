@@ -78,5 +78,5 @@ service: container-image
 
 .PHONY: deploy
 deploy:
-	git push origin master
+	git push $(MAKEFLAGS) origin master
 	./deploy/deploy.sh
