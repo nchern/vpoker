@@ -761,8 +761,9 @@ func handleSignalsLoop(srv *server) {
 }
 
 // TODO_FEAT: add chips when player joins - automate arrangements
-// TODO_FEAT: handle online / offline / web socket reconnect when a user comes back to a page
 // TODO_FEAT: periodic state save
+// TODO_FEAT: handle closing of the push channel
+// TODO_FEAT: handle online / offline / web socket reconnect when a user comes back to a page
 // TODO_DEBUG: debug and test on mobile
 // TODO_DEBT: clean handler decorators that forbid mobile
 // TODO: decide what to do with abandoned rooms. Now they not only stay in memory but also
