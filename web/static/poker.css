@@ -57,6 +57,20 @@ nav a:hover {
     */
 }
 
+#error-banner {
+    top: 90px;
+
+    display: none;
+
+    position: fixed;
+    width: 100%;
+    background-color: #D93025;
+    color: #ffffff;
+    text-align: center;
+    padding: 10px;
+    z-index: 1000;
+}
+
 #card-table {
     position: relative;
 

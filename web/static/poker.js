@@ -204,32 +204,6 @@ function renderCard(card) {
     card.style.color = color;
 }
 
-function takeCard(card) {
-    if (card.info.owner_id != '') {
-        return; // already owned
-    }
-    ajax().success((resp) => {
-        console.info('take card result: ', resp);
-        if (resp.updated != null) {
-            updateItem(resp.updated);
-        }
-    }).postJSON(`${window.location.pathname}/take_card`,
-        {id: card.info.id});
-}
-
-function showCard(card) {
-    if (card.info.owner_id != getSession().user_id) {
-        return; // can't show not owned cards
-    }
-    ajax().success((resp) => {
-        console.info('show card result: ', resp);
-        if (resp.updated != null) {
-            updateItem(resp.updated);
-        }
-    }).postJSON(`${window.location.pathname}/show_card`,
-        {id: card.info.id});
-}
-
 function onCardDblClick(e, card) {
     console.log('DEBUG onCardDblClick', e.button);
     if (e.button != BUTTON_LEFT) {
@@ -404,6 +378,32 @@ function createItem(info) {
     return item;
 }
 
+function takeCard(card) {
+    if (card.info.owner_id != '') {
+        return; // already owned
+    }
+    ajax().success((resp) => {
+        console.info('take card result: ', resp);
+        if (resp.updated != null) {
+            updateItem(resp.updated);
+        }
+    }).postJSON(`${window.location.pathname}/take_card`,
+        {id: card.info.id});
+}
+
+function showCard(card) {
+    if (card.info.owner_id != getSession().user_id) {
+        return; // can't show not owned cards
+    }
+    ajax().success((resp) => {
+        console.info('show card result: ', resp);
+        if (resp.updated != null) {
+            updateItem(resp.updated);
+        }
+    }).postJSON(`${window.location.pathname}/show_card`,
+        {id: card.info.id});
+}
+
 function isKeyPressed(e, key) {
     try {
         return e.key.toLowerCase() === key;
@@ -450,7 +450,41 @@ function listenPushes() {
     };
 }
 
+function showElem(elem) {
+    elem.style.display = 'block';
+}
+
+function hideElem(elem) {
+    elem.style.display = 'none';
+}
+
+function blockTable() {
+    const errBanner = document.getElementById('error-banner');
+    errBanner.innerHTML = '<p>Portrait mode is not supported. Switch to landscape!</p>';
+    const table = document.getElementById('card-table');
+    for (let elem of table.children) {
+        hideElem(elem);
+    }
+    showElem(errBanner);
+}
+
+function isPortraitMode() { return window.innerWidth < window.innerHeight; }
+
 function onLoad() {
+    window.addEventListener("resize", function() {
+        if (isPortraitMode()) {
+            blockTable();
+        } else {
+            location.reload();
+        }
+    });
+    if (isPortraitMode()) {
+        blockTable();
+        return;
+    } else {
+        hideElem(document.getElementById('error-banner'));
+    }
+
     document.addEventListener('keydown', (event) => {
         if (isKeyPressed(event, 't')) {
             isKeyTPressed = true;
