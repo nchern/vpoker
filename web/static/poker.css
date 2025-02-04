@@ -42,6 +42,19 @@ nav a:hover {
     margin-bottom: 20px;
 
     text-align: center;
+
+    /* new version
+    top: 90px;
+
+    display: block;
+    position: fixed;
+    width: 100%;
+    background-color: #D93025;
+    color: #fff;
+    text-align: center;
+    padding: 10px;
+    z-index: 1000;
+    */
 }
 
 #card-table {
@@ -159,10 +172,29 @@ nav a:hover {
     position: absolute;
     background-color: transparent;
     border-radius: 8px;
-    /* border-radius: 50%; /1* Make it circular *1/ */
+
+    color: white;
+
+    font-size: 26px;
+
 
     width: 360px;
     height: 170px;
+}
+
+.open_slot {
+    border: 2px dashed white;
+    position: absolute;
+    background-color: transparent;
+    border-radius: 8px;
+
+    width: 290px;
+    height: 170px;
+
+    text-align: center;
+
+    left: 360px;
+    top: 360px;
 }
 
 .dealer {

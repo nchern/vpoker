@@ -760,12 +760,13 @@ func handleSignalsLoop(srv *server) {
 	os.Exit(0)
 }
 
-// TODO: decide what to do with abandoned rooms. Now they not only stay in memory but also
-// keep websocket groutines/channels forever
 // TODO_FEAT: add chips when player joins - automate arrangements
 // TODO_FEAT: handle online / offline / web socket reconnect when a user comes back to a page
 // TODO_FEAT: periodic state save
-// TODO_FEAT: add mobile support: touch / tap handling
+// TODO_DEBUG: debug and test on mobile
+// TODO_DEBT: clean handler decorators that forbid mobile
+// TODO: decide what to do with abandoned rooms. Now they not only stay in memory but also
+// keep websocket groutines/channels forever
 func main() {
 	s := &server{
 		endpoint: ":8080",

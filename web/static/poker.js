@@ -120,7 +120,13 @@ function handleItemDrop(item) {
             const slotRect = new Rect(slot);
             if (rect.centerWithin(slotRect)) {
                 takeCard(item);
+                return;
             }
+        }
+
+        const showSlot = document.getElementById('open-slot');
+        if (rect.centerWithin(new Rect(showSlot))) {
+            showCard(item);
         }
         break;
     }
@@ -245,7 +251,6 @@ function onCardDblClick(e, card) {
 function newCard(info, x, y) {
     const card = newItem('card', info, x, y);
     card.addEventListener('click', (e) => {
-        console.log('DEBUG', isKeyTPressed, isKeyOPressed, e);
         if (e.button != BUTTON_LEFT) {
             return;
         }
