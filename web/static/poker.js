@@ -5,6 +5,8 @@ const COVER = 'cover';
 const BUTTON_LEFT = 0;
 
 let players = {};
+let tableWidth = 0;
+let tableHeight = 0;
 
 let isKeyTPressed = false;
 let isKeyOPressed = false;
@@ -146,11 +148,23 @@ function onItemMouseDown(e, item) {
         const deltaX = event.clientX - initialMouseX;
         const deltaY = event.clientY - initialMouseY;
 
-        item.style.left = `${initialItemX + deltaX}px`;
-        item.style.top = `${initialItemY + deltaY}px`;
+        const left = parseInt(initialItemX + deltaX);
+        const top = parseInt(initialItemY + deltaY);
 
-        item.info.x = parseInt(item.style.left);
-        item.info.y = parseInt(item.style.top);
+        // console.info(item.id, left, top, tableWidth, tableHeight);
+        const itemRect = new Rect(item);
+        console.log(left, tableWidth + itemRect.width() / 2);
+        if ((left < 0 || left > tableWidth - itemRect.width()/2) ||
+            (top < 0 || top > tableHeight - itemRect.height()/2)
+        ) {
+            return; // disallow to move items outside the table
+        }
+
+        item.style.left = `${left}px`;
+        item.style.top = `${top}px`;
+
+        item.info.x = left;
+        item.info.y = top;
 
         ajax().postJSON(`${window.location.pathname}/update`, item.info);
     }
@@ -461,8 +475,8 @@ function hideElem(elem) {
 function blockTable() {
     const errBanner = document.getElementById('error-banner');
     errBanner.innerHTML = '<p>Portrait mode is not supported. Switch to landscape!</p>';
-    const table = document.getElementById('card-table');
-    for (let elem of table.children) {
+    const theTable = document.getElementById('card-table');
+    for (let elem of theTable.children) {
         hideElem(elem);
     }
     showElem(errBanner);
@@ -485,6 +499,9 @@ function onLoad() {
         hideElem(document.getElementById('error-banner'));
     }
 
+    const theTable = new Rect(document.getElementById('card-table'));
+    tableWidth = theTable.width();
+    tableHeight = theTable.height();
     document.addEventListener('keydown', (event) => {
         if (isKeyPressed(event, 't')) {
             isKeyTPressed = true;
