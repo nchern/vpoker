@@ -1,7 +1,7 @@
 server {
     listen 0.0.0.0:80;
-  
-    server_name p.nb.kick.sh;
+
+    server_name p.nb.kick.sh pkr.kick.sh;
 
     set $backend "http://localhost:8080";
 
