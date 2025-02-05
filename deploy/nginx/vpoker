@@ -3,8 +3,7 @@ server {
 
     server_name p.nb.kick.sh pkr.kick.sh;
 
-    set $backend "http://localhost:8080";
-
+    set $backend "http://127.0.0.1:8080";
 
     # set rate limits on registrations
     # limit_req_zone $binary_remote_addr zone=regs_limit:10m rate=20r/m;  # 10 requests per minute per IP
