@@ -156,8 +156,8 @@ function onItemMouseDown(e, item) {
         // console.info(item.id, left, top, tableWidth, tableHeight);
         const itemRect = new Rect(item);
         console.log(left, tableWidth + itemRect.width() / 2);
-        if ((left < 0 || left > tableWidth - itemRect.width()/2) ||
-            (top < 0 || top > tableHeight - itemRect.height()/2)
+        if ((left < 0 || left > tableWidth - itemRect.width() / 2) ||
+            (top < 0 || top > tableHeight - itemRect.height() / 2)
         ) {
             return; // disallow to move items outside the table
         }
@@ -230,10 +230,6 @@ function onCardDblClick(e, card) {
     }
     card.info.side = card.info.side == COVER ? FACE: COVER;
     ajax().success((resp) => {
-        if (resp.updated == null) {
-            return;
-        }
-        card.info = resp.updated;
         updateItem(resp.updated);
     }).postJSON(`${window.location.pathname}/update`, card.info)
 }
@@ -307,8 +303,8 @@ function newPlayer(info, x, y) {
 
     item.render = () => {
         // HACK
-        item.style.left = ''; // use from css
-        item.style.top = ''; // use from css
+        item.style.left = '';   // use from css
+        item.style.top = '';    // use from css
     };
     item.render();
     return item;
@@ -325,6 +321,9 @@ function updateSlotsWithMoney(slot) {
 }
 
 function updateItem(src) {
+    if (src === null || src === undefined) {
+        return;
+    }
     if (src.id === null || src.id === undefined) {
         console.log('warn bad id', src);
         return;
@@ -340,17 +339,13 @@ function updateItem(src) {
 }
 
 function updateItems(items) {
-    const chips = [];
+    const slots = document.querySelectorAll('.player_slot');
     for (let it of items) {
         updateItem(it);
         if (it.class == 'chip') {
-            chips.push(it);
+            const item = document.getElementById(`item-${it.id}`);
+            accountChip(item, slots);
         }
-    }
-    const slots = document.querySelectorAll('.player_slot');
-    for (let it of chips) {
-        const item = document.getElementById(`item-${it.id}`);
-        accountChip(item, slots);
     }
     slots.forEach(updateSlotsWithMoney);
 }
@@ -399,12 +394,8 @@ function takeCard(card) {
         return; // already owned
     }
     ajax().success((resp) => {
-        console.info('take card result: ', resp);
-        if (resp.updated != null) {
-            updateItem(resp.updated);
-        }
-    }).postJSON(`${window.location.pathname}/take_card`,
-        {id: card.info.id});
+        updateItem(resp.updated);
+    }).postJSON(`${window.location.pathname}/take_card`, {id: card.info.id});
 }
 
 function showCard(card) {
@@ -412,12 +403,8 @@ function showCard(card) {
         return; // can't show not owned cards
     }
     ajax().success((resp) => {
-        console.info('show card result: ', resp);
-        if (resp.updated != null) {
-            updateItem(resp.updated);
-        }
-    }).postJSON(`${window.location.pathname}/show_card`,
-        {id: card.info.id});
+        updateItem(resp.updated);
+    }).postJSON(`${window.location.pathname}/show_card`, {id: card.info.id});
 }
 
 function isKeyPressed(e, key) {
@@ -475,11 +462,10 @@ function hideElem(elem) {
     elem.style.display = 'none';
 }
 
-function blockTable() {
+function blockTable(table) {
     const errBanner = document.getElementById('error-banner');
     errBanner.innerHTML = '<p>Portrait mode is not supported. Switch to landscape!</p>';
-    const theTable = document.getElementById('card-table');
-    for (let elem of theTable.children) {
+    for (let elem of table.children) {
         hideElem(elem);
     }
     showElem(errBanner);
@@ -488,23 +474,24 @@ function blockTable() {
 function isPortraitMode() { return window.innerWidth < window.innerHeight; }
 
 function onLoad() {
+    const theTable = document.getElementById('card-table');
     window.addEventListener("resize", function() {
         if (isPortraitMode()) {
-            blockTable();
+            blockTable(theTable);
         } else {
             location.reload();
         }
     });
     if (isPortraitMode()) {
-        blockTable();
+        blockTable(theTable);
         return;
     } else {
         hideElem(document.getElementById('error-banner'));
     }
 
-    const theTable = new Rect(document.getElementById('card-table'));
-    tableWidth = theTable.width();
-    tableHeight = theTable.height();
+    const tableRect = new Rect(theTable);
+    tableWidth = tableRect.width();
+    tableHeight = tableRect.height();
     document.addEventListener('keydown', (event) => {
         if (isKeyPressed(event, 't')) {
             isKeyTPressed = true;
