@@ -11,6 +11,8 @@ let tableHeight = 0;
 let isKeyTPressed = false;
 let isKeyOPressed = false;
 
+let socket = null;
+
 function getSession() {
     const cookies = document.cookie.split('; ');
     const sessionCookie = cookies.find(cookie => cookie.startsWith('session='));
@@ -462,6 +464,7 @@ function listenPushes() {
             console.log("push unknown:", resp);
         }
     };
+    return socket;
 }
 
 function showElem(elem) {
@@ -522,10 +525,6 @@ function onLoad() {
     ajax().success((resp) => {
         console.info('initial table fetch:', resp);
         updateTable(resp);
-        // setInterval(() => {
-        //     refresh();
-        // }, 10000);
-        listenPushes();
-
+        socket = listenPushes();
     }).get(`${window.location.pathname}/state?cw=${window.screen.availWidth}&ch=${window.screen.availHeight}`);
 }
