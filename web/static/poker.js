@@ -2,6 +2,7 @@
 const FACE = 'face';
 const COVER = 'cover';
 
+const SECOND = 1000;
 const BUTTON_LEFT = 0;
 
 let players = {};
@@ -416,19 +417,20 @@ function isKeyPressed(e, key) {
 }
 
 function listenPushes() {
-    const socket = new WebSocket(`ws://${window.location.host}${window.location.pathname}/listen`);
-    socket.onopen = () => {
+    const sock = new WebSocket(`ws://${window.location.host}${window.location.pathname}/listen`);
+    sock.onopen = () => {
         console.log('websocket connected');
-        let banner = document.getElementById('offline-banner');
-        banner.style.display = 'none';
+        hideElem(document.getElementById('error-banner'));
     };
-    socket.onclose = () => {
+    sock.onclose = () => {
         console.log('websocket disconnected');
-        let banner = document.getElementById('offline-banner');
-        banner.style.display = 'block';
+        showError('OFFLINE. Try to refresh');
+        setTimeout(() => { socket = listenPushes(); }, 10 * SECOND);
     };
-    socket.onerror = (err) => { console.error('websocket error:', err); };
-    socket.onmessage = (event) => {
+    sock.onerror = (err) => {
+        console.error('websocket error:', err);
+    };
+    sock.onmessage = (event) => {
         let resp = null;
         try {
             resp = JSON.parse(event.data)
@@ -451,7 +453,7 @@ function listenPushes() {
             console.log("push unknown:", resp);
         }
     };
-    return socket;
+    return sock;
 }
 
 function showElem(elem) {
@@ -462,13 +464,18 @@ function hideElem(elem) {
     elem.style.display = 'none';
 }
 
+function showError(text) {
+    const banner = document.getElementById('error-banner');
+    banner.innerHTML = `<p>${text}</p>`;
+    showElem(banner);
+    return banner;
+}
+
 function blockTable(table) {
-    const errBanner = document.getElementById('error-banner');
-    errBanner.innerHTML = '<p>Portrait mode is not supported. Switch to landscape!</p>';
+    showError('Portrait mode is not supported. Switch to landscape!');
     for (let elem of table.children) {
         hideElem(elem);
     }
-    showElem(errBanner);
 }
 
 function isPortraitMode() { return window.innerWidth < window.innerHeight; }
