@@ -1,0 +1,12 @@
+#!/bin/sh
+set -ue
+
+SITE=$1
+
+install -m 0644 "./deploy/nginx/$SITE" /etc/nginx/sites-available/
+[ ! -f "/etc/nginx/sites-enabled/$SITE" ] &&
+    ln -s "/etc/nginx/sites-available/$SITE" "/etc/nginx/sites-enabled/$SITE"
+nginx -t	# test config
+systemctl restart nginx
+sleep 2	# give time to capture any immediate failures
+systemctl status -l --no-page nginx

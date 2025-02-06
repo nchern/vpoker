@@ -60,13 +60,9 @@ container-image:
 # coverage-html: vet
 # 	@./tools/coverage.sh html
 
-.PHONY: config-nginx
-config-nginx :
-	install -m 0644 ./deploy/nginx/$(SVC_NAME) /etc/nginx/sites-available/
-	[ ! -f /etc/nginx/sites-enabled/$(SVC_NAME) ] && ln -s /etc/nginx/sites-available/$(SVC_NAME) /etc/nginx/sites-enabled/$(SVC_NAME)
-	systemctl restart nginx
-	sleep 2	# give time to capture any immediate failures
-	systemctl status -l --no-page nginx
+.PHONY: nginx-config
+nginx-config:
+	./deploy/nginx-config vpoker
 
 .PHONY: service
 service: container-image
