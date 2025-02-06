@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -321,23 +322,32 @@ func (s *server) pushRoomUpdates(w http.ResponseWriter, r *http.Request) {
 		defer conn.Close()
 		logger.Debug.Printf("ws %s pushes_start", ctx)
 		for {
+			var err error
 			select {
 			case update := <-updates:
-				if err := handlePush(ctx, conn, update); err != nil {
+				if err = handlePush(ctx, conn, update); err != nil {
 					if errors.Is(err, errChanClosed) {
 						return nil, err // terminate the loop only if channel got closed
 					}
-					logger.Error.Printf("ws %s %s", ctx, err) // continue listening
+					logger.Error.Printf("ws %s %s", ctx, err)
 				}
 			case <-time.After(15 * time.Second): // check state periodically
 				// logger.Debug.Printf("%s websocket_ping", ctx)
-				if err := conn.WriteMessage(websocket.PingMessage, []byte("ping")); err != nil {
+				if err = conn.WriteMessage(websocket.PingMessage, []byte("ping")); err != nil {
 					logger.Error.Printf("ws %s %s", ctx, err)
 					// decide how to unsubscribe - race conditions
 					// unable to write - close this connection
 					// return nil, fmt.Errorf("websocket_ping write error: %w", err)
 				}
 				// no need to read - browser does not automatically send a response
+			}
+			var netErr net.Error
+			if errors.As(err, &netErr) {
+				if !netErr.Temporary() {
+					close(updates)
+					logger.Info.Printf("ws %s %s pushes_finish", ctx)
+					return nil, err // terminate the loop
+				}
 			}
 		}
 	}))(w, r)
@@ -762,7 +772,6 @@ func handleSignalsLoop(srv *server) {
 
 // TODO_FEAT: add chips when player joins - automate arrangements
 // TODO_FEAT: periodic state save
-// TODO_FEAT: handle closing of the push channel
 // TODO_FEAT: handle online / offline / web socket reconnect when a user comes back to a page
 // TODO_DEBUG: debug and test on mobile
 // TODO_DEBT: clean handler decorators that forbid mobile
