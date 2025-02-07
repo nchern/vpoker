@@ -269,9 +269,10 @@ func (s *server) loadState() error {
 func handlePush(ctx *Context, conn *websocket.Conn, update *poker.Push) error {
 	if update == nil {
 		// channel closed, teminating this update loop
-		logger.Info.Printf("ws %s web socket connection terminated by another connection", ctx)
+		msg := "terminated by another connection"
+		logger.Info.Printf("ws %s web socket connection %s", ctx, msg)
 		if err := conn.WriteMessage(
-			websocket.TextMessage, []byte("terminated by another connection")); err != nil {
+			websocket.TextMessage, []byte(msg)); err != nil {
 			logger.Error.Printf("%s conn.WriteMessage %s", ctx, err)
 		}
 		return errChanClosed
@@ -301,8 +302,8 @@ func (s *server) pushRoomUpdates(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return nil, err
 		}
-		updates := make(chan *poker.Push)
 		var p *poker.Player
+		updates := make(chan *poker.Push)
 		if err := ctx.room.Update(func(rm *poker.Room) error {
 			p = rm.Players[ctx.user.ID]
 			if p == nil {
@@ -380,19 +381,19 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	req := map[string]int{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	id, found := req["id"]
+	if !found {
+		return nil, httpx.NewError(http.StatusBadRequest, "id field is missing")
+	}
 	var updated poker.TableItem
 	var notifyThem poker.PlayerList
 	if err := ctx.room.Update(func(rm *poker.Room) error {
 		if rm.Players[ctx.user.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not in the room")
-		}
-		req := map[string]int{}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			return err
-		}
-		id, found := req["id"]
-		if !found {
-			return nil
 		}
 		item := rm.Items.Get(id)
 		if item == nil {
@@ -423,20 +424,20 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	req := map[string]int{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	id, found := req["id"]
+	if !found {
+		return nil, httpx.NewError(http.StatusBadRequest, "id field is missing")
+	}
 	curUser, room := ctx.user, ctx.room
 	var updated poker.TableItem
 	var notifyThem poker.PlayerList
 	if err := room.Update(func(rm *poker.Room) error {
 		if rm.Players[curUser.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not in the room")
-		}
-		req := map[string]int{}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			return err
-		}
-		id, found := req["id"]
-		if !found {
-			return nil
 		}
 		item := rm.Items.Get(id)
 		if item == nil {
@@ -597,8 +598,8 @@ func (s *server) renderRoom(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	curUser, room := ctx.user, ctx.room
-	errRedirect := errors.New("redirect")
 	players := []*poker.Player{}
+	errRedirect := errors.New("redirect")
 	if err := room.ReadLock(func(rm *poker.Room) error {
 		if rm.Players[curUser.ID] == nil {
 			return errRedirect
