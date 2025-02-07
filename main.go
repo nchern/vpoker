@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -342,13 +341,10 @@ func (s *server) pushRoomUpdates(w http.ResponseWriter, r *http.Request) {
 				}
 				// no need to read - browser does not automatically send a response
 			}
-			var netErr net.Error
-			if errors.As(err, &netErr) {
-				if !netErr.Temporary() {
-					close(updates)
-					logger.Info.Printf("ws %s %s pushes_finish", ctx)
-					return nil, err // terminate the loop
-				}
+			if errors.Is(err, syscall.EPIPE) {
+				close(updates)
+				logger.Info.Printf("ws %s pushes_finish", ctx)
+				return nil, err // terminate the loop
 			}
 		}
 	}))(w, r)
