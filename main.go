@@ -16,6 +16,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"text/template"
 	"time"
@@ -215,20 +216,25 @@ type ItemUpdatedResponse struct {
 	Updated *poker.TableItem `json:"updated"`
 }
 
-type server struct {
-	endpoint string
-
-	rooms poker.RoomMap
-	users poker.UserMap
+type stateFile struct {
+	path string
+	lock sync.RWMutex
 }
 
-func (s *server) saveState() error {
+func NewStateFile(path string) *stateFile {
+	return &stateFile{path: path}
+}
+
+func (s *stateFile) save(marshalers ...json.Marshaler) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	f, err := os.Create(statePath)
-	defer func() { logError(f.Close(), "saveState os.Create") }()
+	defer func() { logError(f.Close(), "stateFile.save os.Create") }()
 	if err != nil {
 		return err
 	}
-	for _, v := range []json.Marshaler{s.users, s.rooms} {
+	for _, v := range marshalers {
 		b, err := v.MarshalJSON()
 		if err != nil {
 			return err
@@ -243,17 +249,19 @@ func (s *server) saveState() error {
 	return err
 }
 
-func (s *server) loadState() error {
+func (s *stateFile) load(unmarshalers ...json.Unmarshaler) error {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 	if err := os.MkdirAll(path.Dir(statePath), 0700); err != nil {
 		return err
 	}
 	f, err := os.Open(statePath)
-	defer func() { logError(f.Close(), "loadState os.Open") }()
+	defer func() { logError(f.Close(), "stateFile.load os.Open") }()
 	if err != nil {
 		return err
 	}
 	r := bufio.NewReader(f)
-	for _, v := range []json.Unmarshaler{s.users, s.rooms} {
+	for _, v := range unmarshalers {
 		l, err := r.ReadString('\n')
 		if err != nil {
 			return err
@@ -263,6 +271,15 @@ func (s *server) loadState() error {
 		}
 	}
 	return nil
+}
+
+type server struct {
+	endpoint string
+
+	rooms poker.RoomMap
+	users poker.UserMap
+
+	state *stateFile
 }
 
 func handlePush(ctx *Context, conn *websocket.Conn, update *poker.Push) error {
@@ -720,6 +737,19 @@ func (s *server) index(r *http.Request) (*httpx.Response, error) {
 	})
 }
 
+func (s *server) loadState() error { return s.state.load(s.users, s.rooms) }
+
+func (s *server) saveState() error { return s.state.save(s.users, s.rooms) }
+
+func saveStateLoop(s *server) {
+	const saveStateEvery = 10 * time.Second
+	for range time.Tick(saveStateEvery) {
+		if err := s.saveState(); err != nil {
+			logger.Error.Printf("saveStateLoop: %s", err)
+		}
+	}
+}
+
 func getUserFromSession(r *http.Request, users poker.UserMap) (*session, error) {
 	sess := &session{}
 	cookie, err := r.Cookie("session")
@@ -766,7 +796,6 @@ func handleSignalsLoop(srv *server) {
 	os.Exit(0)
 }
 
-// TODO_FEAT: periodic state save
 // TODO_DEBUG: debug and test on mobile
 // TODO_DEBT: clean handler decorators that forbid mobile
 // TODO: decide what to do with abandoned rooms. Now they not only stay in memory but also
@@ -774,8 +803,10 @@ func handleSignalsLoop(srv *server) {
 func main() {
 	s := &server{
 		endpoint: ":8080",
-		rooms:    poker.NewRoomMapSyncronized(),
-		users:    poker.NewUserMapSyncronized(),
+		state:    NewStateFile(statePath),
+
+		rooms: poker.NewRoomMapSyncronized(),
+		users: poker.NewUserMapSyncronized(),
 	}
 	if err := s.loadState(); err != nil {
 		logger.Error.Printf("server.loadState %s", err)
@@ -841,6 +872,8 @@ func main() {
 		http.StripPrefix("/static/", http.FileServer(http.Dir("./web/static"))))
 
 	go handleSignalsLoop(s)
+	go saveStateLoop(s)
+
 	logger.Info.Printf("Start listening on %s", s.endpoint)
 	must(http.ListenAndServe(s.endpoint, nil))
 }
