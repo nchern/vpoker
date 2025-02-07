@@ -175,22 +175,22 @@ func (m *syncUserMap) Clone() UserMap {
 	return r
 }
 
-// RoomMapVisitor is a visitor function to visit map pairs
-type RoomMapVisitor func(uuid.UUID, *Room) bool
+// TableMapVisitor is a visitor function to visit map pairs
+type TableMapVisitor func(uuid.UUID, *Table) bool
 
-// RoomMap exposes the contract of UUID to RoomPtr map
-type RoomMap interface {
+// TableMap exposes the contract of UUID to TablePtr map
+type TableMap interface {
 	// Each visits each element in the map. It stops iterations if visitor func returns false
-	Each(visitor RoomMapVisitor)
+	Each(visitor TableMapVisitor)
 
 	// Get returns the value of a given key. If the key was not found the second return value will be false
-	Get(key uuid.UUID) (v *Room, found bool)
+	Get(key uuid.UUID) (v *Table, found bool)
 
 	// Set sets the value of a given key
-	Set(key uuid.UUID, val *Room)
+	Set(key uuid.UUID, val *Table)
 
 	// Update updates the current map from a given map
-	Update(src map[uuid.UUID]*Room) RoomMap
+	Update(src map[uuid.UUID]*Table) TableMap
 
 	// Remove removes a given key from this map
 	Remove(key uuid.UUID) bool
@@ -202,31 +202,31 @@ type RoomMap interface {
 	UnmarshalJSON([]byte) error
 }
 
-type baseRoomMap struct {
-	_map map[uuid.UUID]*Room
+type baseTableMap struct {
+	_map map[uuid.UUID]*Table
 }
 
-// NewRoomMap creates a basic instance of the UUIDRoomPtrMap. It is _unsafe_ for concurrent access.
-func NewRoomMap() RoomMap {
-	res := &baseRoomMap{
-		_map: map[uuid.UUID]*Room{},
+// NewTableMap creates a basic instance of the UUIDTablePtrMap. It is _unsafe_ for concurrent access.
+func NewTableMap() TableMap {
+	res := &baseTableMap{
+		_map: map[uuid.UUID]*Table{},
 	}
 	return res
 }
 
-// NewRoomMapSyncronized creates a concurrent safe instance of the UUIDRoomPtrMap
-func NewRoomMapSyncronized() RoomMap {
-	return &syncRoomMap{
-		inner: NewRoomMap(),
+// NewTableMapSyncronized creates a concurrent safe instance of the UUIDTablePtrMap
+func NewTableMapSyncronized() TableMap {
+	return &syncTableMap{
+		inner: NewTableMap(),
 	}
 }
 
-func (m *baseRoomMap) Get(key uuid.UUID) (v *Room, found bool) {
+func (m *baseTableMap) Get(key uuid.UUID) (v *Table, found bool) {
 	v, found = m._map[key]
 	return
 }
 
-func (m *baseRoomMap) Each(visitor RoomMapVisitor) {
+func (m *baseTableMap) Each(visitor TableMapVisitor) {
 	for k, v := range m._map {
 		if !visitor(k, v) {
 			return
@@ -234,58 +234,58 @@ func (m *baseRoomMap) Each(visitor RoomMapVisitor) {
 	}
 }
 
-func (m *baseRoomMap) Set(key uuid.UUID, val *Room) {
+func (m *baseTableMap) Set(key uuid.UUID, val *Table) {
 	m._map[key] = val
 }
 
-func (m *baseRoomMap) Update(src map[uuid.UUID]*Room) RoomMap {
+func (m *baseTableMap) Update(src map[uuid.UUID]*Table) TableMap {
 	for k, v := range src {
 		m._map[k] = v
 	}
 	return m
 }
 
-func (m *baseRoomMap) MarshalJSON() ([]byte, error) {
+func (m *baseTableMap) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m._map)
 }
 
-func (m *baseRoomMap) UnmarshalJSON(b []byte) error {
+func (m *baseTableMap) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, &m._map)
 }
 
-func (m *baseRoomMap) Remove(key uuid.UUID) bool {
+func (m *baseTableMap) Remove(key uuid.UUID) bool {
 	_, found := m._map[key]
 	delete(m._map, key)
 
 	return found
 }
 
-type syncRoomMap struct {
-	inner RoomMap
+type syncTableMap struct {
+	inner TableMap
 
 	mutex sync.RWMutex
 }
 
-func (m *syncRoomMap) Each(visitor RoomMapVisitor) {
+func (m *syncTableMap) Each(visitor TableMapVisitor) {
 	m.mutex.RLock()
 	m.inner.Each(visitor)
 	m.mutex.RUnlock()
 }
 
-func (m *syncRoomMap) Get(key uuid.UUID) (v *Room, found bool) {
+func (m *syncTableMap) Get(key uuid.UUID) (v *Table, found bool) {
 	m.mutex.RLock()
 	v, found = m.inner.Get(key)
 	m.mutex.RUnlock()
 	return
 }
 
-func (m *syncRoomMap) Set(key uuid.UUID, val *Room) {
+func (m *syncTableMap) Set(key uuid.UUID, val *Table) {
 	m.mutex.Lock()
 	m.inner.Set(key, val)
 	m.mutex.Unlock()
 }
 
-func (m *syncRoomMap) Update(src map[uuid.UUID]*Room) RoomMap {
+func (m *syncTableMap) Update(src map[uuid.UUID]*Table) TableMap {
 	m.mutex.Lock()
 	m.inner.Update(src)
 	m.mutex.Unlock()
@@ -293,7 +293,7 @@ func (m *syncRoomMap) Update(src map[uuid.UUID]*Room) RoomMap {
 	return m
 }
 
-func (m *syncRoomMap) Remove(key uuid.UUID) bool {
+func (m *syncTableMap) Remove(key uuid.UUID) bool {
 	m.mutex.Lock()
 	found := m.inner.Remove(key)
 	m.mutex.Unlock()
@@ -301,13 +301,13 @@ func (m *syncRoomMap) Remove(key uuid.UUID) bool {
 	return found
 }
 
-func (m *syncRoomMap) MarshalJSON() ([]byte, error) {
+func (m *syncTableMap) MarshalJSON() ([]byte, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	return json.Marshal(m.inner)
 }
 
-func (m *syncRoomMap) UnmarshalJSON(b []byte) error {
+func (m *syncTableMap) UnmarshalJSON(b []byte) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	return m.inner.UnmarshalJSON(b)

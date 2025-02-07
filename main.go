@@ -121,9 +121,9 @@ func newLastName(now time.Time, v string) *http.Cookie {
 }
 
 type Context struct {
-	ctx  context.Context
-	room *poker.Room
-	user *poker.User
+	ctx   context.Context
+	table *poker.Table
+	user  *poker.User
 }
 
 func (c *Context) String() string {
@@ -131,8 +131,8 @@ func (c *Context) String() string {
 	if c.user != nil {
 		fields = append(fields, "user_name="+c.user.Name)
 	}
-	if c.room != nil {
-		fields = append(fields, "room_id="+c.room.ID.String())
+	if c.table != nil {
+		fields = append(fields, "table_id="+c.table.ID.String())
 	}
 	return strings.Join(fields, " ")
 }
@@ -158,23 +158,23 @@ func (b *contextBuilder) build() (*Context, error) {
 	return b.ctx, nil
 }
 
-func (b *contextBuilder) withRoom(s *server, r *http.Request, idParam string) *contextBuilder {
+func (b *contextBuilder) withTable(s *server, r *http.Request, idParam string) *contextBuilder {
 	if b.err != nil {
 		return b
 	}
 	id := mux.Vars(r)[idParam]
-	roomID, err := uuid.Parse(id)
+	tableID, err := uuid.Parse(id)
 	if err != nil {
 		logger.Error.Println("bad uuid=" + id)
 		b.err = httpx.NewError(http.StatusBadRequest, "bad id: "+id)
 		return b
 	}
-	room, found := s.rooms.Get(roomID)
+	table, found := s.tables.Get(tableID)
 	if !found {
-		b.err = httpx.NewError(http.StatusBadRequest, "room not found")
+		b.err = httpx.NewError(http.StatusBadRequest, "table not found")
 		return b
 	}
-	b.ctx.room = room
+	b.ctx.table = table
 	return b
 }
 
@@ -276,8 +276,8 @@ func (s *stateFile) load(unmarshalers ...json.Unmarshaler) error {
 type server struct {
 	endpoint string
 
-	rooms poker.RoomMap
-	users poker.UserMap
+	tables poker.TableMap
+	users  poker.UserMap
 
 	state *stateFile
 }
@@ -308,22 +308,22 @@ func handlePush(ctx *Context, conn *websocket.Conn, update *poker.Push) error {
 	return nil
 }
 
-func (s *server) pushRoomUpdates(w http.ResponseWriter, r *http.Request) {
+func (s *server) pushTableUpdates(w http.ResponseWriter, r *http.Request) {
 	// TODO: finalize channel properly. Now any error yields to deadlock.
 	// IT IS NOT CLEAR HOW how to gracefully finalize channel on errors.
 	// It means that for now there is a goroutine leak on disconnected web sockets
 	// now it leads to race conditions when a new channel is created
 	httpx.H(authenticated(s.users, func(r *http.Request) (*httpx.Response, error) {
-		ctx, err := newContextBuilder(r.Context()).withUser(s, r).withRoom(s, r, "id").build()
+		ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
 		if err != nil {
 			return nil, err
 		}
 		var p *poker.Player
 		updates := make(chan *poker.Push)
-		if err := ctx.room.Update(func(rm *poker.Room) error {
-			p = rm.Players[ctx.user.ID]
+		if err := ctx.table.Update(func(t *poker.Table) error {
+			p = t.Players[ctx.user.ID]
 			if p == nil {
-				return httpx.NewError(http.StatusForbidden, "you are not in the room")
+				return httpx.NewError(http.StatusForbidden, "you are not at the table")
 			}
 			p.Subscribe(updates)
 			return nil
@@ -368,17 +368,17 @@ func (s *server) pushRoomUpdates(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) shuffle(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withRoom(s, r, "id").build()
+	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
 	if err != nil {
 		return nil, err
 	}
 	var notifyThem poker.PlayerList
-	if err := ctx.room.Update(func(rm *poker.Room) error {
-		if rm.Players[ctx.user.ID] == nil {
-			return httpx.NewError(http.StatusForbidden, "you are not in the room")
+	if err := ctx.table.Update(func(t *poker.Table) error {
+		if t.Players[ctx.user.ID] == nil {
+			return httpx.NewError(http.StatusForbidden, "you are not at the table")
 		}
-		ctx.room.Shuffle()
-		notifyThem = rm.OtherPlayers(ctx.user)
+		ctx.table.Shuffle()
+		notifyThem = t.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -386,11 +386,11 @@ func (s *server) shuffle(r *http.Request) (*httpx.Response, error) {
 	// notify others
 	// push updates: potentially long operation - check
 	notifyThem.NotifyAll(poker.NewPushRefresh())
-	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.room.ID)), nil
+	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.table.ID)), nil
 }
 
 func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withRoom(s, r, "id").build()
+	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
 	if err != nil {
 		return nil, err
 	}
@@ -404,11 +404,11 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 	}
 	var updated poker.TableItem
 	var notifyThem poker.PlayerList
-	if err := ctx.room.Update(func(rm *poker.Room) error {
-		if rm.Players[ctx.user.ID] == nil {
-			return httpx.NewError(http.StatusForbidden, "you are not in the room")
+	if err := ctx.table.Update(func(t *poker.Table) error {
+		if t.Players[ctx.user.ID] == nil {
+			return httpx.NewError(http.StatusForbidden, "you are not at the table")
 		}
-		item := rm.Items.Get(id)
+		item := t.Items.Get(id)
 		if item == nil {
 			return httpx.NewError(http.StatusBadRequest, "bad item id")
 		}
@@ -422,7 +422,7 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 		item.OwnerID = ""
 		item.Side = poker.Face
 		updated = *item
-		notifyThem = rm.OtherPlayers(ctx.user)
+		notifyThem = t.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -433,7 +433,7 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 }
 
 func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withRoom(s, r, "id").build()
+	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
 	if err != nil {
 		return nil, err
 	}
@@ -445,14 +445,14 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 	if !found {
 		return nil, httpx.NewError(http.StatusBadRequest, "id field is missing")
 	}
-	curUser, room := ctx.user, ctx.room
+	curUser, table := ctx.user, ctx.table
 	var updated poker.TableItem
 	var notifyThem poker.PlayerList
-	if err := room.Update(func(rm *poker.Room) error {
-		if rm.Players[curUser.ID] == nil {
-			return httpx.NewError(http.StatusForbidden, "you are not in the room")
+	if err := table.Update(func(t *poker.Table) error {
+		if t.Players[curUser.ID] == nil {
+			return httpx.NewError(http.StatusForbidden, "you are not at the table")
 		}
-		item := rm.Items.Get(id)
+		item := t.Items.Get(id)
 		if item == nil {
 			return httpx.NewError(http.StatusBadRequest, "bad item id")
 		}
@@ -465,7 +465,7 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 		}
 		item.OwnerID = curUser.ID.String()
 		updated = *item
-		notifyThem = rm.OtherPlayers(ctx.user)
+		notifyThem = t.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -518,9 +518,9 @@ func (s *server) updateProfile(r *http.Request) (*httpx.Response, error) {
 }
 
 func updateItem(ctx *Context, r *http.Request) (*poker.TableItem, error) {
-	curUser, room := ctx.user, ctx.room
-	if room.Players[curUser.ID] == nil {
-		return nil, httpx.NewError(http.StatusForbidden, "you are not in the room")
+	curUser, table := ctx.user, ctx.table
+	if table.Players[curUser.ID] == nil {
+		return nil, httpx.NewError(http.StatusForbidden, "you are not at the table")
 	}
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -531,7 +531,7 @@ func updateItem(ctx *Context, r *http.Request) (*poker.TableItem, error) {
 	if err := json.Unmarshal(b, &src); err != nil {
 		return nil, err
 	}
-	dest := room.Items.Get(src.ID)
+	dest := table.Items.Get(src.ID)
 	if dest == nil {
 		return nil, httpx.NewError(http.StatusBadRequest, "bad item id")
 	}
@@ -549,23 +549,23 @@ func updateItem(ctx *Context, r *http.Request) (*poker.TableItem, error) {
 	return dest, nil
 }
 
-func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withRoom(s, r, "id").build()
+func (s *server) updateTable(r *http.Request) (*httpx.Response, error) {
+	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
 	if err != nil {
 		return nil, err
 	}
-	curUser, room := ctx.user, ctx.room
+	curUser, table := ctx.user, ctx.table
 	var notifyThem poker.PlayerList
 	var updated poker.TableItem
-	if err := room.Update(func(rm *poker.Room) error {
+	if err := table.Update(func(t *poker.Table) error {
 		up, err := updateItem(ctx, r)
 		if err != nil {
 			return err
 		}
 		updated = *up
 		// collect players to push updates to
-		// push itself must happen outside room lock in order to avoid deadlocks
-		notifyThem = room.OtherPlayers(curUser)
+		// push itself must happen outside table lock in order to avoid deadlocks
+		notifyThem = table.OtherPlayers(curUser)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -576,109 +576,110 @@ func (s *server) updateRoom(r *http.Request) (*httpx.Response, error) {
 	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: &updated}), nil
 }
 
-func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withRoom(s, r, "id").build()
+func (s *server) joinTable(r *http.Request) (*httpx.Response, error) {
+	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
 	if err != nil {
 		return nil, err
 	}
 	var players map[uuid.UUID]*poker.Player
 	var updated []*poker.TableItem
 	var notifyThem poker.PlayerList
-	if err := ctx.room.Update(func(rm *poker.Room) error {
-		hasJoined := rm.Players[ctx.user.ID] != nil
+	if err := ctx.table.Update(func(t *poker.Table) error {
+		hasJoined := t.Players[ctx.user.ID] != nil
 		if hasJoined {
 			return nil
 		}
-		logger.Debug.Printf("players_joind=%d", len(rm.Players))
-		if len(rm.Players) >= maxPlayers {
-			return httpx.NewError(http.StatusForbidden, "this room is full")
+		logger.Debug.Printf("players_joind=%d", len(t.Players))
+		if len(t.Players) >= maxPlayers {
+			return httpx.NewError(http.StatusForbidden, "this table is full")
 		}
-		updated = rm.Join(ctx.user)
-		players = rm.Players
-		notifyThem = rm.OtherPlayers(ctx.user)
+		updated = t.Join(ctx.user)
+		players = t.Players
+		notifyThem = t.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 	// push updates: potentially long operation - check
+	logger.Debug.Printf("%d", len(updated))
 	notifyThem.NotifyAll(poker.NewPushPlayerJoined(players, updated...))
-	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.room.ID)), nil
+	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.table.ID)), nil
 }
 
-func (s *server) renderRoom(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withRoom(s, r, "id").build()
+func (s *server) renderTable(r *http.Request) (*httpx.Response, error) {
+	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
 	if err != nil {
 		return nil, err
 	}
-	curUser, room := ctx.user, ctx.room
+	curUser, table := ctx.user, ctx.table
 	players := []*poker.Player{}
 	errRedirect := errors.New("redirect")
-	if err := room.ReadLock(func(rm *poker.Room) error {
-		if rm.Players[curUser.ID] == nil {
+	if err := table.ReadLock(func(t *poker.Table) error {
+		if t.Players[curUser.ID] == nil {
 			return errRedirect
 		}
-		for _, v := range rm.Players {
+		for _, v := range t.Players {
 			players = append(players, v)
 		}
 		return nil
 	}); err != nil {
 		if err == errRedirect {
-			return httpx.Redirect(fmt.Sprintf("/rooms/%s/join", room.ID)), nil
+			return httpx.Redirect(fmt.Sprintf("/rooms/%s/join", table.ID)), nil
 		}
 		return nil, err
 	}
 	return httpx.RenderFile(http.StatusOK, "web/poker.html", m{
 		"Players":  players,
-		"RoomID":   room.ID,
+		"TableID":  table.ID,
 		"Username": curUser.Name,
 	})
 }
 
-func getRoomState(curUser *poker.User, room *poker.Room) (*poker.Room, error) {
-	var roomCopy *poker.Room
-	if err := room.ReadLock(func(rm *poker.Room) error {
-		if rm.Players[curUser.ID] == nil {
-			return httpx.NewError(http.StatusForbidden, "you are not in the room")
+func getTableState(curUser *poker.User, table *poker.Table) (*poker.Table, error) {
+	var tableCopy *poker.Table
+	if err := table.ReadLock(func(t *poker.Table) error {
+		if t.Players[curUser.ID] == nil {
+			return httpx.NewError(http.StatusForbidden, "you are not at the table")
 		}
 		var err error
-		// deep copy the current room - items must be modified
+		// deep copy the current table - items must be modified
 		// as their content differes for different users due to ownership
-		roomCopy, err = rm.DeepCopy()
+		tableCopy, err = t.DeepCopy()
 		return err
 	}); err != nil {
 		return nil, err
 	}
-	for _, it := range roomCopy.Items {
+	for _, it := range tableCopy.Items {
 		it.ApplyVisibilityRules(curUser)
 	}
-	return roomCopy, nil
+	return tableCopy, nil
 }
 
-func (s *server) roomState(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withRoom(s, r, "id").build()
+func (s *server) tableState(r *http.Request) (*httpx.Response, error) {
+	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
 	if err != nil {
 		return nil, err
 	}
-	roomCopy, err := getRoomState(ctx.user, ctx.room)
+	tableCopy, err := getTableState(ctx.user, ctx.table)
 	if err != nil {
 		return nil, err
 	}
-	return httpx.JSON(http.StatusOK, roomCopy), nil
+	return httpx.JSON(http.StatusOK, tableCopy), nil
 }
 
-func (s *server) newRoom(r *http.Request) (*httpx.Response, error) {
+func (s *server) newTable(r *http.Request) (*httpx.Response, error) {
 	sess, err := getUserFromSession(r, s.users)
 	if err != nil {
 		return nil, err
 	}
 	curUser := sess.user
-	logger.Info.Printf("user_id=%s action=room_created", curUser.ID)
+	logger.Info.Printf("user_id=%s action=table_created", curUser.ID)
 
-	room := poker.NewRoom(uuid.New(), 50).StartGame()
-	s.rooms.Set(room.ID, room)
-	room.Join(curUser)
+	table := poker.NewTable(uuid.New(), 50).StartGame()
+	s.tables.Set(table.ID, table)
+	table.Join(curUser)
 
-	return httpx.Redirect(fmt.Sprintf("/rooms/%s", room.ID)), nil
+	return httpx.Redirect(fmt.Sprintf("/rooms/%s", table.ID)), nil
 }
 
 func (s *server) newUser(r *http.Request) (*httpx.Response, error) {
@@ -737,9 +738,9 @@ func (s *server) index(r *http.Request) (*httpx.Response, error) {
 	})
 }
 
-func (s *server) loadState() error { return s.state.load(s.users, s.rooms) }
+func (s *server) loadState() error { return s.state.load(s.users, s.tables) }
 
-func (s *server) saveState() error { return s.state.save(s.users, s.rooms) }
+func (s *server) saveState() error { return s.state.save(s.users, s.tables) }
 
 func saveStateLoop(s *server) {
 	const saveStateEvery = 10 * time.Second
@@ -798,15 +799,15 @@ func handleSignalsLoop(srv *server) {
 
 // TODO_DEBUG: debug and test on mobile
 // TODO_DEBT: clean handler decorators that forbid mobile
-// TODO: decide what to do with abandoned rooms. Now they not only stay in memory but also
+// TODO: decide what to do with abandoned tables. Now they not only stay in memory but also
 // keep websocket groutines/channels forever
 func main() {
 	s := &server{
 		endpoint: ":8080",
 		state:    NewStateFile(statePath),
 
-		rooms: poker.NewRoomMapSyncronized(),
-		users: poker.NewUserMapSyncronized(),
+		tables: poker.NewTableMapSyncronized(),
+		users:  poker.NewUserMapSyncronized(),
 	}
 	if err := s.loadState(); err != nil {
 		logger.Error.Printf("server.loadState %s", err)
@@ -840,21 +841,21 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", h(s.index)).Methods("GET")
-	r.HandleFunc("/rooms/new", httpx.H(auth(s.newRoom)))
+	r.HandleFunc("/rooms/new", httpx.H(auth(s.newTable)))
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}",
-		h(redirectIfNoAuth("/users/new", s.renderRoom))).Methods("GET")
+		h(redirectIfNoAuth("/users/new", s.renderTable))).Methods("GET")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/state",
-		httpx.H(auth(s.roomState))).Methods("GET")
+		httpx.H(auth(s.tableState))).Methods("GET")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/join",
-		httpx.H(auth(s.joinRoom))).Methods("GET")
+		httpx.H(auth(s.joinTable))).Methods("GET")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/update",
-		httpx.H(auth(s.updateRoom))).Methods("POST")
+		httpx.H(auth(s.updateTable))).Methods("POST")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/show_card",
 		httpx.H(auth(s.showCard))).Methods("POST")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/take_card",
 		httpx.H(auth(s.takeCard))).Methods("POST")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/listen",
-		s.pushRoomUpdates).Methods("GET")
+		s.pushTableUpdates).Methods("GET")
 	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/shuffle",
 		httpx.H(auth(s.shuffle))).Methods("GET")
 
