@@ -481,7 +481,7 @@ function blockTable(table) {
 
 function isPortraitMode() { return window.innerWidth < window.innerHeight; }
 
-function onLoad() {
+function start() {
     const theTable = document.getElementById('card-table');
     window.addEventListener("resize", function() {
         if (isPortraitMode()) {

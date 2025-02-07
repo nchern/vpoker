@@ -26,7 +26,9 @@
     </div>
     <script>
         (function() {
-            window.addEventListener('load', onLoad);
+            // Use pageshow to call the initialization always even if this page
+            // gets loaded from a browser cache
+            window.addEventListener('pageshow', start);
         })();
     </script>
 </body>
