@@ -156,7 +156,7 @@ function onItemMouseDown(e, item) {
 
         // console.info(item.id, left, top, tableWidth, tableHeight);
         const itemRect = new Rect(item);
-        console.log(left, tableWidth + itemRect.width() / 2);
+        console.log(left, top, tableWidth + itemRect.width() / 2);
         if ((left < 0 || left > tableWidth - itemRect.width() / 2) ||
             (top < 0 || top > tableHeight - itemRect.height() / 2)
         ) {
@@ -442,6 +442,7 @@ function listenPushes() {
         switch (resp.type) {
         case 'player_joined':
             updateTable(resp);
+
             break;
         case 'update_items':
             updateItems(resp.items);

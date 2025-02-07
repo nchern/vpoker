@@ -269,7 +269,7 @@ func (s *server) loadState() error {
 func handlePush(ctx *Context, conn *websocket.Conn, update *poker.Push) error {
 	if update == nil {
 		// channel closed, teminating this update loop
-		logger.Info.Printf("ws %s web socket connection terminated", ctx)
+		logger.Info.Printf("ws %s web socket connection terminated by another connection", ctx)
 		if err := conn.WriteMessage(
 			websocket.TextMessage, []byte("terminated by another connection")); err != nil {
 			logger.Error.Printf("%s conn.WriteMessage %s", ctx, err)
@@ -568,7 +568,7 @@ func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	var players map[uuid.UUID]*poker.Player
-	var updated *poker.TableItem
+	var updated []*poker.TableItem
 	var notifyThem poker.PlayerList
 	if err := ctx.room.Update(func(rm *poker.Room) error {
 		hasJoined := rm.Players[ctx.user.ID] != nil
@@ -587,8 +587,7 @@ func (s *server) joinRoom(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	// push updates: potentially long operation - check
-	// notifyThem.NotifyAll(poker.PlayerJoined)
-	notifyThem.NotifyAll(poker.NewPushPlayerJoined(players, updated))
+	notifyThem.NotifyAll(poker.NewPushPlayerJoined(players, updated...))
 	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.room.ID)), nil
 }
 
@@ -770,7 +769,6 @@ func handleSignalsLoop(srv *server) {
 	os.Exit(0)
 }
 
-// TODO_FEAT: add chips when player joins - automate arrangements
 // TODO_FEAT: periodic state save
 // TODO_FEAT: handle online / offline / web socket reconnect when a user comes back to a page
 // TODO_DEBUG: debug and test on mobile

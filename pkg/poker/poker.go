@@ -11,6 +11,20 @@ import (
 	"github.com/nchern/vpoker/pkg/logger"
 )
 
+const (
+	chipWidth = 70
+)
+
+var (
+	// color: #3498DB; Blue
+	// color: #F1C40F; Yellow
+	PlayerColors = []Color{
+		"#FF5733", // Red
+		"#9B59B6", // Purple
+		"#2ECC71", // Green
+	}
+)
+
 // User represents a system user
 type User struct {
 	CreatedAt time.Time
@@ -68,16 +82,6 @@ const (
 	Black Color = "black"
 )
 
-// color: #3498DB; Blue
-// color: #F1C40F; Yellow
-var (
-	PlayerColors = []Color{
-		"#FF5733", // Red
-		"#9B59B6", // Purple
-		"#2ECC71", // Green
-	}
-)
-
 var chipsSet = []Chip{
 	{Color: Gray, Val: 1},
 	{Color: Red, Val: 5},
@@ -96,9 +100,9 @@ type Chip struct {
 type PushType string
 
 const (
-	UpdateItems  PushType = "update_items"
 	Refresh      PushType = "refresh"
 	PlayerJoined PushType = "player_joined"
+	UpdateItems  PushType = "update_items"
 )
 
 // Push represents a push event that happens in the game and
@@ -296,16 +300,49 @@ func (r *Room) Shuffle() *Room {
 	return r
 }
 
+func (r *Room) generateChipsForPlayer(idx int) {
+	// add chips
+	slots := [][]int{
+		{140, 610},
+		{640, 20},
+		{640, 640},
+	}
+	counts := map[Color]int{
+		Gray:  10,
+		Red:   8,
+		Blue:  5,
+		Green: 2,
+		Black: 1,
+	}
+	slot := slots[idx]
+	x, y := slot[0], slot[1]
+	for _, ci := range chipsSet {
+		if ci.Color == Green {
+			x = slot[0]
+			y = slot[1] + chipWidth
+		}
+		for i := 0; i < counts[ci.Color]; i++ {
+			item := NewTableItem(len(r.Items), x, y).AsChip(&ci)
+			r.Items = append(r.Items, item)
+			x += 2
+		}
+		x += chipWidth
+	}
+}
+
 // Join joins a user
-func (r *Room) Join(u *User) *TableItem {
+func (r *Room) Join(u *User) []*TableItem {
 	index := len(r.Players) % len(PlayerColors)
 	p := newPlayer(u, PlayerColors[index])
 	p.Index = index
 	p.Skin = fmt.Sprintf("player_%d", index)
+
 	r.Players[u.ID] = p
-	item := NewTableItem(len(r.Items), 0, 0).AsPlayer(p)
-	r.Items = append(r.Items, item)
-	return item
+	r.Items = append(r.Items, NewTableItem(len(r.Items), 0, 0).AsPlayer(p))
+
+	r.generateChipsForPlayer(index)
+	startIdx := len(r.Items)
+	return r.Items[startIdx:]
 }
 
 // OtherPlayers returns all players but a given
