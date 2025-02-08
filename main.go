@@ -410,7 +410,7 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 		}
 		item := t.Items.Get(id)
 		if item == nil {
-			return httpx.NewError(http.StatusBadRequest, "bad item id")
+			return httpx.NewError(http.StatusNotFound, "item not found")
 		}
 		if err := item.Show(ctx.user); err != nil {
 			return err
@@ -439,18 +439,17 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 	if !found {
 		return nil, httpx.NewError(http.StatusBadRequest, "id field is missing")
 	}
-	curUser, table := ctx.user, ctx.table
 	var updated poker.TableItem
 	var notifyThem poker.PlayerList
-	if err := table.Update(func(t *poker.Table) error {
-		if t.Players[curUser.ID] == nil {
+	if err := ctx.table.Update(func(t *poker.Table) error {
+		if t.Players[ctx.user.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not at the table")
 		}
 		item := t.Items.Get(id)
 		if item == nil {
-			return httpx.NewError(http.StatusBadRequest, "bad item id")
+			return httpx.NewError(http.StatusNotFound, "item not found")
 		}
-		updated = *item.Take(curUser)
+		updated = *item.Take(ctx.user)
 		notifyThem = t.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
@@ -519,7 +518,7 @@ func updateItem(ctx *Context, r *http.Request) (*poker.TableItem, error) {
 	}
 	dest := table.Items.Get(src.ID)
 	if dest == nil {
-		return nil, httpx.NewError(http.StatusBadRequest, "bad item id")
+		return nil, httpx.NewError(http.StatusNotFound, "item not found")
 	}
 	if dest.Class != src.Class {
 		return nil, httpx.NewError(http.StatusBadRequest, "attempt to update readonly field .Class")
