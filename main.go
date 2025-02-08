@@ -171,7 +171,7 @@ func (b *contextBuilder) withTable(s *server, r *http.Request, idParam string) *
 	}
 	table, found := s.tables.Get(tableID)
 	if !found {
-		b.err = httpx.NewError(http.StatusBadRequest, "table not found")
+		b.err = httpx.NewError(http.StatusNotFound, "table not found")
 		return b
 	}
 	b.ctx.table = table
