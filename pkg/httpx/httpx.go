@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"encoding/base64"
+	"encoding/base32"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -139,14 +139,14 @@ func (e *Error) Error() string {
 type RequestHandler func(r *http.Request) (*Response, error)
 
 func mkRequestID() string {
-	randomBytes := make([]byte, 6)
+	randomBytes := make([]byte, 10)
 	_, err := rand.Read(randomBytes)
 	if err != nil {
 		id := uuid.New().String()
 		logger.Error.Printf("request_id=%s %s", id, err)
 		return id
 	}
-	return base64.StdEncoding.EncodeToString(randomBytes)
+	return base32.StdEncoding.EncodeToString(randomBytes)
 }
 
 func writeResponse(r *http.Request, w http.ResponseWriter, code int, body []byte, requestID string) {
