@@ -434,7 +434,6 @@ function listenPushes() {
         let resp = null;
         try {
             resp = JSON.parse(event.data)
-            console.info(resp);
         } catch (e) {
             // non-JSON payload?
             console.log("push error:",e, event.data);

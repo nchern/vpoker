@@ -132,10 +132,10 @@ func (r *Table) Join(u *User) []*TableItem {
 	p.Skin = fmt.Sprintf("player_%d", index)
 
 	r.Players[u.ID] = p
+	startIdx := len(r.Items)
 	r.Items = append(r.Items, NewTableItem(len(r.Items), 0, 0).AsPlayer(p))
 
 	r.generateChipsForPlayer(index)
-	startIdx := len(r.Items)
 	return r.Items[startIdx:]
 }
 
