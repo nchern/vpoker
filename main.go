@@ -412,15 +412,9 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 		if item == nil {
 			return httpx.NewError(http.StatusBadRequest, "bad item id")
 		}
-		// only cards can be shown
-		if !item.Is(poker.CardClass) {
-			return nil
+		if err := item.Show(ctx.user); err != nil {
+			return err
 		}
-		if !item.IsOwnedBy(ctx.user.ID) {
-			return httpx.NewError(http.StatusForbidden, "this is not your card")
-		}
-		item.OwnerID = ""
-		item.Side = poker.Face
 		updated = *item
 		notifyThem = t.OtherPlayers(ctx.user)
 		return nil
@@ -456,15 +450,7 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 		if item == nil {
 			return httpx.NewError(http.StatusBadRequest, "bad item id")
 		}
-		// only cards can be taken
-		if !item.Is(poker.CardClass) {
-			return nil
-		}
-		if item.IsOwned() {
-			return nil // already taken
-		}
-		item.OwnerID = curUser.ID.String()
-		updated = *item
+		updated = *item.Take(curUser)
 		notifyThem = t.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {

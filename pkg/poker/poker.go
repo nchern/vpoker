@@ -2,9 +2,11 @@ package poker
 
 import (
 	"encoding/json"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nchern/vpoker/pkg/httpx"
 	"github.com/nchern/vpoker/pkg/logger"
 )
 
@@ -297,6 +299,33 @@ func (ti *TableItem) AsPlayer(p *Player) *TableItem {
 	ti.OwnerID = p.ID.String()
 	ti.Class = PlayerClass
 	return ti
+}
+
+// Take takes a card by a given user
+func (ti *TableItem) Take(u *User) *TableItem {
+	// only cards can be taken
+	if !ti.Is(CardClass) {
+		return ti
+	}
+	if ti.IsOwned() {
+		return ti // already taken
+	}
+	ti.OwnerID = u.ID.String()
+	return ti
+}
+
+// Shows card to everyone, disowns a card if it was taken by a player
+func (ti *TableItem) Show(u *User) error {
+	// only cards can be shown
+	if !ti.Is(CardClass) {
+		return nil
+	}
+	if !ti.IsOwnedBy(u.ID) {
+		return httpx.NewError(http.StatusForbidden, "not your card")
+	}
+	ti.OwnerID = ""
+	ti.Side = Face
+	return nil
 }
 
 // Is defines if this item belongs to a specified class
