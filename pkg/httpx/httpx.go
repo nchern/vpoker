@@ -16,7 +16,7 @@ import (
 	"github.com/nchern/vpoker/pkg/logger"
 )
 
-// ContextKey represents a specific type for keys in Request.Content
+// ContextHeader represents a specific type for keys in Request.Context
 type ContextHeader string
 
 const (

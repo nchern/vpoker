@@ -79,6 +79,7 @@ func (r *Table) StartGame() *Table {
 	return r
 }
 
+// Shuffle shuffles cards on the table
 func (r *Table) Shuffle() *Table {
 	cards := r.Items[0:52]
 	shuffle(cards)
@@ -126,8 +127,8 @@ func (r *Table) generateChipsForPlayer(idx int) {
 
 // Join joins a user
 func (r *Table) Join(u *User) []*TableItem {
-	index := len(r.Players) % len(PlayerColors)
-	p := newPlayer(u, PlayerColors[index])
+	index := len(r.Players) % len(playerColors)
+	p := newPlayer(u, playerColors[index])
 	p.Index = index
 	p.Skin = fmt.Sprintf("player_%d", index)
 

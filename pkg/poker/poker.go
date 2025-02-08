@@ -15,7 +15,7 @@ const (
 var (
 	// color: #3498DB; Blue
 	// color: #F1C40F; Yellow
-	PlayerColors = []Color{
+	playerColors = []Color{
 		"#FF5733", // Red
 		"#9B59B6", // Purple
 		"#2ECC71", // Green
@@ -47,13 +47,16 @@ var Ranks = []string{"2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"
 type Side string
 
 const (
+	// Cover represents card cover side
 	Cover Side = "cover"
-	Face  Side = "face"
+	// Face represents card face side
+	Face Side = "face"
 )
 
 // Suit is a card suit
 type Suit string
 
+// Card suit constants
 const (
 	BlankSuit      = ""
 	Spades    Suit = "♠"
@@ -62,6 +65,7 @@ const (
 	Clubs     Suit = "♣"
 )
 
+// Card represents a card in a game
 type Card struct {
 	Suit Suit   `json:"suit"`
 	Rank string `json:"rank"`
@@ -71,6 +75,7 @@ type Card struct {
 // Color is a card color
 type Color string
 
+// Available colors in the game
 const (
 	Red   Color = "red"
 	Blue  Color = "blue"
@@ -96,6 +101,7 @@ type Chip struct {
 // PushType represents a push type
 type PushType string
 
+// Available pushes types
 const (
 	Refresh      PushType = "refresh"
 	PlayerJoined PushType = "player_joined"
@@ -125,10 +131,12 @@ func (p *Push) DeepCopy() (*Push, error) {
 	return dest, nil
 }
 
+// NewPushItems returns a new push instance with given items
 func NewPushItems(items ...*TableItem) *Push {
 	return &Push{Type: UpdateItems, Items: items}
 }
 
+// NewPushPlayerJoined returns a new push to send when a new player joins
 func NewPushPlayerJoined(players map[uuid.UUID]*Player, items ...*TableItem) *Push {
 	return &Push{
 		Type: PlayerJoined,
@@ -138,10 +146,13 @@ func NewPushPlayerJoined(players map[uuid.UUID]*Player, items ...*TableItem) *Pu
 	}
 }
 
+// NewPushRefresh returns a new push instance to force a client refresh
 func NewPushRefresh() *Push { return &Push{Type: Refresh} }
 
+// PlayerList represents a list of players
 type PlayerList []*Player
 
+// NotifyAll dispatches a given push to each player in the list
 func (pl PlayerList) NotifyAll(push *Push) {
 	for _, p := range pl {
 		// logger.Debug.Printf("recepient=%s send_push_begin", p.Name)
@@ -215,6 +226,7 @@ type CardList []*Card
 // Class represents a type of the item on the table
 type Class string
 
+// Classes of items on the table
 const (
 	CardClass   Class = "card"
 	ChipClass   Class = "chip"
