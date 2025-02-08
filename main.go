@@ -386,7 +386,7 @@ func (s *server) shuffle(r *http.Request) (*httpx.Response, error) {
 	// notify others
 	// push updates: potentially long operation - check
 	notifyThem.NotifyAll(poker.NewPushRefresh())
-	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.table.ID)), nil
+	return httpx.Redirect(fmt.Sprintf("/games/%s", ctx.table.ID)), nil
 }
 
 func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
@@ -603,7 +603,7 @@ func (s *server) joinTable(r *http.Request) (*httpx.Response, error) {
 	// push updates: potentially long operation - check
 	logger.Debug.Printf("%d", len(updated))
 	notifyThem.NotifyAll(poker.NewPushPlayerJoined(players, updated...))
-	return httpx.Redirect(fmt.Sprintf("/rooms/%s", ctx.table.ID)), nil
+	return httpx.Redirect(fmt.Sprintf("/games/%s", ctx.table.ID)), nil
 }
 
 func (s *server) renderTable(r *http.Request) (*httpx.Response, error) {
@@ -624,7 +624,7 @@ func (s *server) renderTable(r *http.Request) (*httpx.Response, error) {
 		return nil
 	}); err != nil {
 		if err == errRedirect {
-			return httpx.Redirect(fmt.Sprintf("/rooms/%s/join", table.ID)), nil
+			return httpx.Redirect(fmt.Sprintf("/games/%s/join", table.ID)), nil
 		}
 		return nil, err
 	}
@@ -679,7 +679,7 @@ func (s *server) newTable(r *http.Request) (*httpx.Response, error) {
 	s.tables.Set(table.ID, table)
 	table.Join(curUser)
 
-	return httpx.Redirect(fmt.Sprintf("/rooms/%s", table.ID)), nil
+	return httpx.Redirect(fmt.Sprintf("/games/%s", table.ID)), nil
 }
 
 func (s *server) newUser(r *http.Request) (*httpx.Response, error) {
@@ -841,22 +841,22 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", h(s.index)).Methods("GET")
-	r.HandleFunc("/rooms/new", httpx.H(auth(s.newTable)))
-	r.HandleFunc("/rooms/{id:[a-z0-9-]+}",
+	r.HandleFunc("/games/new", httpx.H(auth(s.newTable)))
+	r.HandleFunc("/games/{id:[a-z0-9-]+}",
 		h(redirectIfNoAuth("/users/new", s.renderTable))).Methods("GET")
-	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/state",
+	r.HandleFunc("/games/{id:[a-z0-9-]+}/state",
 		httpx.H(auth(s.tableState))).Methods("GET")
-	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/join",
+	r.HandleFunc("/games/{id:[a-z0-9-]+}/join",
 		httpx.H(auth(s.joinTable))).Methods("GET")
-	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/update",
+	r.HandleFunc("/games/{id:[a-z0-9-]+}/update",
 		httpx.H(auth(s.updateTable))).Methods("POST")
-	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/show_card",
+	r.HandleFunc("/games/{id:[a-z0-9-]+}/show_card",
 		httpx.H(auth(s.showCard))).Methods("POST")
-	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/take_card",
+	r.HandleFunc("/games/{id:[a-z0-9-]+}/take_card",
 		httpx.H(auth(s.takeCard))).Methods("POST")
-	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/listen",
+	r.HandleFunc("/games/{id:[a-z0-9-]+}/listen",
 		s.pushTableUpdates).Methods("GET")
-	r.HandleFunc("/rooms/{id:[a-z0-9-]+}/shuffle",
+	r.HandleFunc("/games/{id:[a-z0-9-]+}/shuffle",
 		httpx.H(auth(s.shuffle))).Methods("GET")
 
 	r.HandleFunc("/users/new", h(s.newUser))
