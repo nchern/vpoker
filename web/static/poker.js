@@ -235,6 +235,9 @@ function onCardDblClick(e, card) {
     }).postJSON(`${window.location.pathname}/update`, card.info)
 }
 
+let lastTapTime = 0;
+const TAP_MAX_DURATION_MS = 300;
+
 function newCard(info, x, y) {
     const card = newItem('card', info, x, y);
     card.addEventListener('click', (e) => {
@@ -249,6 +252,17 @@ function newCard(info, x, y) {
         }
     });
     card.addEventListener('dblclick', (e) => { onCardDblClick(e, card) });
+
+    card.addEventListener('touchend', (e) => {
+        const currentTime = new Date().getTime();
+        const tapInterval = currentTime - lastTapTime;
+        if (tapInterval < TAP_MAX_DURATION_MS) {
+            onCardDblClick(e, card);
+        }
+        lastTapTime = currentTime;
+    });
+
+
     card.render = () => {  renderCard(card); };
     card.render();
     return card;
@@ -481,6 +495,12 @@ function blockTable(table) {
 
 function isPortraitMode() { return window.innerWidth < window.innerHeight; }
 
+
+// function handleDoubleTap(event) {
+//     // Your double-tap handling logic here
+//     console.log('Element was double-tapped.');
+// }
+
 function start() {
     const theTable = document.getElementById('card-table');
     window.addEventListener("resize", function() {
@@ -521,5 +541,5 @@ function start() {
         console.info('initial table fetch:', resp);
         updateTable(resp);
         socket = listenPushes();
-    }).get(`${window.location.pathname}/state?cw=${window.screen.availWidth}&ch=${window.screen.availHeight}`);
+    }).get(`${window.location.pathname}/state?cw=${window.screen.availWidth}&ch=${window.screen.availHeight}&iw=${window.innerWidth}&ih=${window.innerHeight}`);
 }
