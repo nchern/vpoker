@@ -113,7 +113,6 @@ function handleItemDrop(item) {
         break;
     case 'card':
         const rect = new Rect(item);
-        // console.log(`DEBUG chip id=${chip.id} accountChip`);
         for (let slot of slots) {
             if (slot.playerElem == null || slot.playerElem === undefined) {
                 continue;
@@ -128,10 +127,15 @@ function handleItemDrop(item) {
                 return;
             }
         }
-
         const showSlot = document.getElementById('open-slot');
         if (rect.centerWithin(new Rect(showSlot))) {
-            showCard(item);
+            if (item.info.owner_id != '') {
+                showCard(item);
+            } else {
+                item.info.side = FACE;
+                ajax().success((resp) => { updateItem(resp.updated); }).
+                    postJSON(`${window.location.pathname}/update`, item.info);
+            }
         }
         break;
     }
@@ -154,9 +158,7 @@ function onItemMouseDown(e, item) {
         const left = parseInt(initialItemX + deltaX);
         const top = parseInt(initialItemY + deltaY);
 
-        // console.info(item.id, left, top, tableWidth, tableHeight);
         const itemRect = new Rect(item);
-        console.log(left, top, tableWidth + itemRect.width() / 2);
         if ((left < 0 || left > tableWidth - itemRect.width() / 2) ||
             (top < 0 || top > tableHeight - itemRect.height() / 2)
         ) {
@@ -256,17 +258,12 @@ function newCard(info, x, y) {
     card.addEventListener('touchend', (e) => {
         const currentTime = new Date().getTime();
         const tapInterval = currentTime - lastTapTime;
-        ajax().error(()=>{}).get(`/log?action=touchend&ct=${currentTime}&&tapInterval=${tapInterval}`)
         if (tapInterval < TAP_MAX_DURATION_MS) {
-            ajax().
-                error(()=>{}).
-                get(`/log?action=doubletap&ct=${currentTime}&&tapInterval=${tapInterval}&button=${e.button}`);
             e.button = BUTTON_LEFT;
             onCardDblClick(e, card);
         }
         lastTapTime = currentTime;
     });
-
 
     card.render = () => {  renderCard(card); };
     card.render();
@@ -278,7 +275,6 @@ function accountChip(chip, slots) {
         return;
     }
     const rect = new Rect(chip);
-    // console.log(`DEBUG chip id=${chip.id} accountChip`);
     for (let slot of slots) {
         if (slot.chips == null) {
             continue;
@@ -461,7 +457,6 @@ function listenPushes() {
         switch (resp.type) {
         case 'player_joined':
             updateTable(resp);
-
             break;
         case 'update_items':
             updateItems(resp.items);
@@ -499,12 +494,6 @@ function blockTable(table) {
 }
 
 function isPortraitMode() { return window.innerWidth < window.innerHeight; }
-
-
-// function handleDoubleTap(event) {
-//     // Your double-tap handling logic here
-//     console.log('Element was double-tapped.');
-// }
 
 function start() {
     const theTable = document.getElementById('card-table');
