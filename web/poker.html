@@ -2,10 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="/static/poker.js"></script>
+    <meta name="viewport" content="width=device-width, minimum-scale=0.5, maximum-scale=1.5, initial-scale=1.2, user-scalable=yes">
+
     <link rel="stylesheet" href="/static/poker.css">
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+
+    <script src="/static/poker.js"></script>
     <title>Poker table: {{ .Username }}</title>
 </head>
 <body>
@@ -26,9 +28,7 @@
     </div>
     <script>
         (function() {
-            // Use pageshow to call the initialization always even if this page
-            // gets loaded from a browser cache
-            window.addEventListener('pageshow', start);
+            document.addEventListener('DOMContentLoaded', start, false);
         })();
     </script>
 </body>
