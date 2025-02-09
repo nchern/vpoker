@@ -45,7 +45,7 @@ nav a {
     color: white;
     text-decoration: none;
     margin: 2vw 0;
-    font-size: 2vw;
+    font-size: 26px;
     /* margin: 0 15px; */
     /* font-size: 18px; */
 }
@@ -181,16 +181,24 @@ nav a:hover {
 }
 
 #open-slot {
+    -webkit-text-stroke: 5px black;
+    paint-order: stroke fill;
+
     background-color: transparent;
     border: 2px dashed white;
     border-radius: 8px;
+
+    font-family: Helvetica;
+    font-weight: bold;
+
+    font-size: 26px;
 
     width: 600px;
     height: 290px;
 
     position: absolute;
 
-    text-align: center;
+    text-align: left;
 
     left: 200px;
     top: 240px;

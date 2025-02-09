@@ -100,7 +100,7 @@ class Rect {
 }
 
 function handleItemDrop(item) {
-    const slots = document.querySelectorAll('.player_slot');
+    const slots = document.querySelectorAll('.slot');
     switch (item.info.class) {
     case 'chip':
         // XXX: accountChip has to be called in exactly in this handler.
@@ -273,12 +273,12 @@ function newCard(info, x, y) {
 }
 
 function accountChip(chip, slots) {
-    if (chip == null) {
+    if (!chip) {
         return;
     }
     const rect = new Rect(chip);
     for (let slot of slots) {
-        if (slot.chips == null) {
+        if (!slot.chips) {
             continue;
         }
         slotRect = new Rect(slot);
@@ -317,7 +317,6 @@ function newPlayer(info, x, y) {
 
     const slot = document.getElementById(`slot-${player.index}`);
     slot.playerElem = item;
-    slot.chips = {};
 
     item.render = () => {
         // HACK
@@ -329,13 +328,17 @@ function newPlayer(info, x, y) {
 }
 
 function updateSlotsWithMoney(slot) {
-    if (slot.chips == null || slot.playerElem == null) {
+    if (!slot.chips) {
         return;
     }
     const vals = Object.values(slot.chips).map(chip => chip.info.val);
     const total = vals.reduce((s, x) => s + x, 0);;
-    const player = players[slot.playerElem.info.owner_id];
-    slot.playerElem.innerText = `${player.Name}: ${total}$`;
+    if (slot.playerElem) {
+        const player = players[slot.playerElem.info.owner_id];
+        slot.playerElem.innerText = `${player.Name}: ${total}$`;
+    } else {
+        slot.innerText = `${total}$`;
+    }
 }
 
 function updateItem(src) {
@@ -357,7 +360,7 @@ function updateItem(src) {
 }
 
 function updateItems(items) {
-    const slots = document.querySelectorAll('.player_slot');
+    const slots = document.querySelectorAll('.slot');
     for (let it of items) {
         updateItem(it);
         if (it.class == 'chip') {
@@ -498,6 +501,9 @@ function blockTable(table) {
 function isPortraitMode() { return window.innerWidth < window.innerHeight; }
 
 function start() {
+    const slots = document.querySelectorAll('.slot');
+    slots.forEach((slot) => { slot.chips = {}; });
+
     const theTable = document.getElementById('card-table');
     window.addEventListener("resize", function() {
         if (isPortraitMode()) {
