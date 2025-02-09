@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, minimum-scale=0.5, maximum-scale=1.5, initial-scale=1.2, user-scalable=yes">
+    <meta name="viewport"
+        content="width=device-width, minimum-scale=0.5, maximum-scale=1.5, initial-scale=1.2, user-scalable=yes">
 
     <link rel="stylesheet" href="/static/poker.css">
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
@@ -16,15 +17,16 @@
         <a href="/games/new" onclick="return confirm('Are you sure you want to leave?');">New game</a>
         <a href="/games/{{ .TableID }}/shuffle" onclick="return confirm('Are you sure?');">Shuffle cards</a>
         <a href="/users/profile?ret_path=/games/{{ .TableID }}">Profile: {{ .Username }}</a>
-        <!-- <span id="offline-banner">OFFLINE. Try to refresh</span> -->
     </nav>
     <div id="error-banner"></div>
-    <div id="card-table">
-        <div class="player_slot player_slot_0" id="slot-0"></div>
-        <div class="player_slot player_slot_1" id="slot-1"></div>
-        <div class="player_slot player_slot_2" id="slot-2"></div>
+    <div class="table-container">
+        <div id="card-table">
+            <div class="player_slot player_slot_0" id="slot-0"></div>
+            <div class="player_slot player_slot_1" id="slot-1"></div>
+            <div class="player_slot player_slot_2" id="slot-2"></div>
 
-        <div class="open_slot" id="open-slot">Move your card here to show it</div>
+            <div class="open_slot" id="open-slot">Move your card here to show it</div>
+        </div>
     </div>
     <script>
         (function() {
