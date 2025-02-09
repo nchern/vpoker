@@ -151,6 +151,8 @@ function onItemMouseDown(e, item) {
     let initialItemX = parseInt(item.style.left);
     let initialItemY = parseInt(item.style.top);
 
+    item.style.zIndex = '500'; // push this item to top when being dragged
+
     function onMouseMove(event) {
         const deltaX = event.clientX - initialMouseX;
         const deltaY = event.clientY - initialMouseY;
@@ -178,6 +180,7 @@ function onItemMouseDown(e, item) {
     document.addEventListener('pointerup', () => {
         ajax().postJSON(`${window.location.pathname}/update`, item.info);
         handleItemDrop(item);
+        item.style.zIndex = ''; // to default
         // cleanup for this drag-n-drop
         document.removeEventListener('pointermove', onMouseMove);
     }, { once: true });
