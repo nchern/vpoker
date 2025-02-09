@@ -225,14 +225,15 @@ nav a:hover {
     height: 170px;
 }
 
-.open_slot {
-    border: 2px dashed white;
-    position: absolute;
+#open-slot {
     background-color: transparent;
+    border: 2px dashed white;
     border-radius: 8px;
 
     width: 500px;
     height: 250px;
+
+    position: absolute;
 
     text-align: center;
 
@@ -325,7 +326,7 @@ nav a:hover {
     left: 0px
 }
 
-.player_slot_0 {
+#slot-0 {
     top: 590px;
     left: 0px;
 }
@@ -336,7 +337,7 @@ nav a:hover {
     left: 880px
 }
 
-.player_slot_1 {
+#slot-1 {
     top: 0px;
     left: 660px;
 }
@@ -347,7 +348,7 @@ nav a:hover {
     left: 880px
 }
 
-.player_slot_2 {
+#slot-2 {
     top: 590px;
     left: 660px;
 }
