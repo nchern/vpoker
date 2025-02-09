@@ -258,7 +258,10 @@ function newCard(info, x, y) {
         const tapInterval = currentTime - lastTapTime;
         ajax().error(()=>{}).get(`/log?action=touchend&ct=${currentTime}&&tapInterval=${tapInterval}`)
         if (tapInterval < TAP_MAX_DURATION_MS) {
-            ajax().error(()=>{}).get(`/log?action=doubletap&ct=${currentTime}&&tapInterval=${tapInterval}`)
+            ajax().
+                error(()=>{}).
+                get(`/log?action=doubletap&ct=${currentTime}&&tapInterval=${tapInterval}&button=${e.button}`);
+            e.button = BUTTON_LEFT;
             onCardDblClick(e, card);
         }
         lastTapTime = currentTime;
