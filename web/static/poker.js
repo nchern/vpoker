@@ -256,7 +256,9 @@ function newCard(info, x, y) {
     card.addEventListener('touchend', (e) => {
         const currentTime = new Date().getTime();
         const tapInterval = currentTime - lastTapTime;
+        ajax().error(()=>{}).get(`/log?action=touchend&ct=${currentTime}&&tapInterval=${tapInterval}`)
         if (tapInterval < TAP_MAX_DURATION_MS) {
+            ajax().error(()=>{}).get(`/log?action=doubletap&ct=${currentTime}&&tapInterval=${tapInterval}`)
             onCardDblClick(e, card);
         }
         lastTapTime = currentTime;
