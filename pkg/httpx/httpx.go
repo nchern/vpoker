@@ -169,6 +169,10 @@ func H(fn RequestHandler) func(http.ResponseWriter, *http.Request) {
 			requestID = mkRequestID()
 		}
 		logger.Info.Printf("%s %s request_id=%s start", r.Method, r.URL, requestID)
+		if strings.Contains(r.UserAgent(), "Bot") {
+			writeResponse(r, w, http.StatusForbidden, []byte("bots are not allowed"), requestID)
+			return
+		}
 		clientIP := r.Header.Get("X-Real-IP")
 		if clientIP == "" {
 			clientIP = r.RemoteAddr
