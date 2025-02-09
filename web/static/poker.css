@@ -245,6 +245,7 @@ nav a:hover {
 
     user-select: none;
     z-index: 1000;
+    touch-action: none;
 }
 
 .dealer:active {
