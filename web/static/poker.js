@@ -215,7 +215,6 @@ function renderCard(card) {
     if (card.info.owner_id != '') {
         card.classList.add('owned');
         card.style.borderColor = players[card.info.owner_id].color || 'purple';
-        // console.info(players[card.info.owner_id]);
     }
     if (side == FACE) {
         text = `${card.info.rank} ${card.info.suit}`;
