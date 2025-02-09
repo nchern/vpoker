@@ -784,7 +784,6 @@ func handleSignalsLoop(srv *server) {
 }
 
 // TODO_DEBUG: debug and test on mobile
-// TODO_DEBT: clean handler decorators that forbid mobile
 // TODO: decide what to do with abandoned tables. Now they not only stay in memory but also
 // keep websocket groutines/channels forever
 func main() {
@@ -815,21 +814,13 @@ func main() {
 		}
 	}
 
-	h := func(fn httpx.RequestHandler) func(http.ResponseWriter, *http.Request) {
-		return httpx.H(func(r *http.Request) (*httpx.Response, error) {
-			// if httpx.IsMobile(r) {
-			// 	return httpx.String(http.StatusBadRequest,
-			// 		"<h1>Mobile devices are not supported!</h1>"), nil
-			// }
-			return fn(r)
-		})
-	}
-
 	r := mux.NewRouter()
-	r.HandleFunc("/", h(s.index)).Methods("GET")
+
+	r.HandleFunc("/", httpx.H(s.index)).Methods("GET")
+
 	r.HandleFunc("/games/new", httpx.H(auth(s.newTable)))
 	r.HandleFunc("/games/{id:[a-z0-9-]+}",
-		h(redirectIfNoAuth("/users/new", s.renderTable))).Methods("GET")
+		httpx.H(redirectIfNoAuth("/users/new", s.renderTable))).Methods("GET")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/state",
 		httpx.H(auth(s.tableState))).Methods("GET")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/join",
@@ -845,12 +836,12 @@ func main() {
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/shuffle",
 		httpx.H(auth(s.shuffle))).Methods("GET")
 
-	r.HandleFunc("/users/new", h(s.newUser))
+	r.HandleFunc("/users/new", httpx.H(s.newUser))
 	r.HandleFunc("/users/profile",
-		h(auth(s.profile))).
+		httpx.H(auth(s.profile))).
 		Methods("GET")
 	r.HandleFunc("/users/profile",
-		h(auth(s.updateProfile))).
+		httpx.H(auth(s.updateProfile))).
 		Methods("POST")
 
 	http.Handle("/", r)
