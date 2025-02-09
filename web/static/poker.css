@@ -54,51 +54,6 @@ nav a:hover {
     text-decoration: underline;
 }
 
-#offline-banner {
-    color: red;
-
-    display:none;
-
-    font-size: 22;
-    font-weight: bold;
-
-    margin-bottom: 20px;
-
-    text-align: center;
-
-    /* new version
-    top: 90px;
-
-    display: block;
-    position: fixed;
-    width: 100%;
-    background-color: #D93025;
-    color: #fff;
-    text-align: center;
-    padding: 10px;
-    z-index: 1000;
-    */
-}
-
-#error-banner {
-    position: fixed;
-    top: 90px;
-
-    display: none;
-
-    font-size: 22;
-    font-weight: bold;
-
-    background-color: #D93025;
-    color: #ffffff;
-
-    text-align: center;
-
-    padding: 10px;
-    z-index: 1000;
-    width: 100%;
-}
-
 #card-table {
     position: relative;
 
@@ -230,15 +185,15 @@ nav a:hover {
     border: 2px dashed white;
     border-radius: 8px;
 
-    width: 500px;
-    height: 250px;
+    width: 600px;
+    height: 290px;
 
     position: absolute;
 
     text-align: center;
 
-    left: 260px;
-    top: 250px;
+    left: 200px;
+    top: 240px;
 }
 
 .dealer {
@@ -371,4 +326,23 @@ nav a:hover {
 .owned_by_2 {
     border: 3px solid;
     border-color: #2ECC71;
+}
+
+#error-banner {
+    position: fixed;
+    top: 90px;
+
+    display: none;
+
+    font-size: 22;
+    font-weight: bold;
+
+    background-color: #D93025;
+    color: #ffffff;
+
+    text-align: center;
+
+    padding: 10px;
+    z-index: 1000;
+    width: 100%;
 }
