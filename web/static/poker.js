@@ -180,7 +180,13 @@ function onItemMouseDown(e, item) {
 
     item.style.zIndex = '500'; // push this item to top when being dragged
 
+    const activePtrID = event.pointerId || 0;
+
     function onMouseMove(event) {
+        if (activePtrID != event.pointerId) {
+            return;
+        }
+
         const deltaX = event.clientX - initialMouseX;
         const deltaY = event.clientY - initialMouseY;
 
