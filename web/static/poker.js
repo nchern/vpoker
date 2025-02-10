@@ -121,16 +121,20 @@ function handleChipDrop(chip, slots) {
 function handleCardDrop(card, slots) {
     const rect = new Rect(card);
     for (let slot of slots) {
-        if (slot.playerElem == null || slot.playerElem === undefined) {
+        if (!slot.playerElem || !slot.playerElem) {
             continue;
         }
-        const owner_id = slot.playerElem.info.owner_id;
-        if (getSession().user_id != owner_id) {
-            continue
-        }
         const slotRect = new Rect(slot);
+        const owner_id = slot.playerElem.info.owner_id;
         if (rect.centerWithin(slotRect)) {
-            takeCard(card);
+            if (getSession().user_id == owner_id) {
+                takeCard(card);
+            } else {
+                if (card.info.owner_id == '') {
+                    ajax().success((resp) => { updateItem(resp.updated); }).
+                        postJSON(`${window.location.pathname}/give_card?id=${card.info.id}&user_id=${owner_id}`);
+                }
+            }
             return;
         }
     }

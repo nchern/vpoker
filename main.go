@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/schema"
 	"github.com/gorilla/websocket"
 	"github.com/nchern/vpoker/pkg/httpx"
 	"github.com/nchern/vpoker/pkg/logger"
@@ -421,6 +422,52 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 	// push updates: potentially long operation - check
 	notifyThem.NotifyAll(poker.NewPushItems(&updated))
 	return httpx.JSON(http.StatusOK, &ItemUpdatedResponse{Updated: &updated}), nil
+}
+
+func (s *server) giveCard(r *http.Request) (*httpx.Response, error) {
+	type form struct {
+		ID     int       `schema:"id,reqiured"`
+		UserID uuid.UUID `schema:"user_id,reqiured"`
+	}
+	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
+	if err != nil {
+		return nil, err
+	}
+	var frm form
+	if err := r.ParseForm(); err != nil {
+		return nil, err
+	}
+	var decoder = schema.NewDecoder()
+	if err := decoder.Decode(&frm, r.Form); err != nil {
+		logger.Error.Printf("%s bad_form: %s", ctx, err)
+		return nil, httpx.NewError(http.StatusBadRequest, "bad params: "+err.Error())
+	}
+	var updated poker.TableItem
+	if err := ctx.table.Update(func(t *poker.Table) error {
+		if t.Players[ctx.user.ID] == nil {
+			return httpx.NewError(http.StatusForbidden, "you are not at the table")
+		}
+		recepient := t.Players[frm.UserID]
+		if recepient == nil {
+			return httpx.NewError(http.StatusForbidden, "recepient is not at the table")
+		}
+		item := t.Items.Get(int(frm.ID))
+		if item == nil {
+			return httpx.NewError(http.StatusNotFound, "item not found")
+		}
+		updated = *item.Take(recepient.User)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	updated.Side = poker.Cover
+	// nolint: errcheck
+	ctx.table.ReadLock(func(t *poker.Table) error {
+		// push updates: potentially long operation - check
+		t.OtherPlayers(ctx.user).NotifyAll(poker.NewPushItems(&updated))
+		return nil
+	})
+	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: &updated}), nil
 }
 
 func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
@@ -834,6 +881,8 @@ func main() {
 		httpx.H(auth(s.showCard))).Methods("POST")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/take_card",
 		httpx.H(auth(s.takeCard))).Methods("POST")
+	r.HandleFunc("/games/{id:[a-z0-9-]+}/give_card",
+		httpx.H(auth(s.giveCard))).Methods("POST")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/listen",
 		s.pushTableUpdates).Methods("GET")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/shuffle",
