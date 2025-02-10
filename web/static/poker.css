@@ -81,7 +81,6 @@ nav a:hover {
     font-weight: bold;
     cursor: grab;
     color: black;
-    user-select: none;
 
     /* background */
     background-color: white;
@@ -90,7 +89,10 @@ nav a:hover {
     background-repeat: no-repeat; /* Prevent tiling of the image */
     background-size: 100% 100%; /* Scale to fit the div's width and height */
 
+    user-select: none;
     touch-action: none;
+
+    z-index: 1;
 }
 
 .card-cover {
@@ -136,7 +138,7 @@ nav a:hover {
 
     user-select: none;
 
-    z-index: 1;
+    z-index: 2;
 
     touch-action: none;
 }
