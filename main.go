@@ -287,8 +287,7 @@ func handlePush(ctx *Context, conn *websocket.Conn, update *poker.Push) error {
 		// channel closed, teminating this update loop
 		msg := "terminated by another connection"
 		logger.Info.Printf("ws %s web socket connection %s", ctx, msg)
-		if err := conn.WriteMessage(
-			websocket.TextMessage, []byte(msg)); err != nil {
+		if err := conn.WriteJSON(poker.NewPushDisconnected()); err != nil {
 			logger.Error.Printf("%s conn.WriteMessage %s", ctx, err)
 		}
 		return errChanClosed
@@ -309,10 +308,9 @@ func handlePush(ctx *Context, conn *websocket.Conn, update *poker.Push) error {
 }
 
 func (s *server) pushTableUpdates(w http.ResponseWriter, r *http.Request) {
-	// TODO: finalize channel properly. Now any error yields to deadlock.
-	// IT IS NOT CLEAR HOW how to gracefully finalize channel on errors.
-	// It means that for now there is a goroutine leak on disconnected web sockets
-	// now it leads to race conditions when a new channel is created
+	// Pushes loop gets terminated in the following cases:
+	// - disconnections from the client
+	// - channel externally closed - a new web socket connection by the same player
 	httpx.H(authenticated(s.users, func(r *http.Request) (*httpx.Response, error) {
 		ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
 		if err != nil {
@@ -349,7 +347,6 @@ func (s *server) pushTableUpdates(w http.ResponseWriter, r *http.Request) {
 					logger.Error.Printf("ws %s %s", ctx, err)
 				}
 			case <-time.After(15 * time.Second): // check state periodically
-				// logger.Debug.Printf("%s websocket_ping", ctx)
 				if err = conn.WriteMessage(websocket.PingMessage, []byte("ping")); err != nil {
 					logger.Error.Printf("ws %s %s", ctx, err)
 					// decide how to unsubscribe - race conditions

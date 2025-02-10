@@ -108,6 +108,7 @@ const (
 	Refresh      PushType = "refresh"
 	PlayerJoined PushType = "player_joined"
 	UpdateItems  PushType = "update_items"
+	Disconnected PushType = "disconnected"
 )
 
 // Push represents a push event that happens in the game and
@@ -150,6 +151,9 @@ func NewPushPlayerJoined(players map[uuid.UUID]*Player, items ...*TableItem) *Pu
 
 // NewPushRefresh returns a new push instance to force a client refresh
 func NewPushRefresh() *Push { return &Push{Type: Refresh} }
+
+// NewPushDisconnected returns a new push instance to force a client refresh
+func NewPushDisconnected() *Push { return &Push{Type: Disconnected} }
 
 // PlayerList represents a list of players
 type PlayerList []*Player

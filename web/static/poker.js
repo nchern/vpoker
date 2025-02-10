@@ -456,7 +456,7 @@ function listenPushes() {
             resp = JSON.parse(event.data)
         } catch (e) {
             // non-JSON payload?
-            console.log("push error:",e, event.data);
+            console.log("error: unknown payload", e, event.data);
             return;
         }
         switch (resp.type) {
