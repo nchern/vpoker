@@ -3,7 +3,7 @@ FROM base-builder:latest AS builder
 WORKDIR /go/src/github.com/nchern/vpoker
 COPY . .
 
-RUN make install-deps tools install
+RUN make install-deps install
 
 FROM alpine:3.19
 

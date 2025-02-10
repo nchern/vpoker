@@ -9,10 +9,6 @@ OUT=$(NAME)
 install-deps:
 	@go mod download
 
-# .PHONY: tools
-# tools:
-# 	@cd tools && go install ./...
-
 .PHONY: lint
 lint:
 	@golint ./...
@@ -28,8 +24,7 @@ vet:
 
 .PHONY: generate
 generate:
-	echo generating
-#	@./tools/gen-version.sh
+	echo generate target
 
 .PHONY: build
 build: generate vet
