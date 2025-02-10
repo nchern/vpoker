@@ -193,8 +193,14 @@ func (p *Player) Dispatch(push *Push) *Player {
 			logger.Error.Printf("Player.Dispatch name=%s panic: %s", p.Name, r)
 		}
 	}()
-	if p.updates != nil {
-		p.updates <- push
+	if p.updates == nil {
+		return p
+	}
+	tm := time.After(40 * time.Millisecond)
+	select {
+	case p.updates <- push:
+	case <-tm:
+		logger.Debug.Printf("user_name=%s Dispatch: timeout", p.Name)
 	}
 	return p
 }
