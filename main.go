@@ -358,7 +358,7 @@ func (s *server) pushTableUpdates(w http.ResponseWriter, r *http.Request) {
 				}
 				// no need to read - browser does not automatically send a response
 			}
-			if errors.Is(err, syscall.EPIPE) {
+			if errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET) {
 				close(updates)
 				logger.Info.Printf("ws %s pushes_finish", ctx)
 				return nil, err // terminate the loop
