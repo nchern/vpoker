@@ -45,7 +45,7 @@ nav a {
     color: white;
     text-decoration: none;
     margin: 2vw 0;
-    font-size: 26px;
+    font-size: 20px;
     /* margin: 0 15px; */
     /* font-size: 18px; */
 }
@@ -57,8 +57,9 @@ nav a:hover {
 #card-table {
     position: relative;
 
-    width: 1024px;
-    height: 768px;
+    width: 1280px;
+    height: 720px;
+
     background-color: green;
     border-radius: 10px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
@@ -179,10 +180,25 @@ nav a:hover {
 
     position: absolute;
 
-    width: 360px;
-    height: 170px;
+    width: 400px;
+    height: 180px;
 
     user-select: none;
+}
+
+#slot-0 {
+    top: 590px;
+    left: 0px;
+}
+
+#slot-1 {
+    top: 0px;
+    left: 870px;
+}
+
+#slot-2 {
+    top: 590px;
+    left: 870px;
 }
 
 #open-slot {
@@ -205,8 +221,8 @@ nav a:hover {
 
     text-align: left;
 
-    left: 200px;
-    top: 240px;
+    left: 340px;
+    top: 215px;
 
     user-select: none;
 }
@@ -285,42 +301,22 @@ nav a:hover {
     z-index: 0;
 }
 
-/*
-    color: #3498DB; Blue
-    color: #F1C40F; Yellow
-*/
-
 .player_0 {
     color: #FF5733;  /* Red */
     top: 680px;
-    left: 0px
-}
-
-#slot-0 {
-    top: 590px;
     left: 0px;
 }
 
 .player_1 {
     color: #9B59B6; /* Purple */
     top: 0px;
-    left: 880px
-}
-
-#slot-1 {
-    top: 0px;
-    left: 660px;
+    left: 1136px
 }
 
 .player_2 {
     color: #2ECC71; /* Green */
     top: 680px;
-    left: 880px
-}
-
-#slot-2 {
-    top: 590px;
-    left: 660px;
+    left: 1136px;
 }
 
 .owned {

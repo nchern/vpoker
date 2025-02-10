@@ -75,7 +75,7 @@ func (r *Table) StartGame() *Table {
 		x++
 		id++
 	}
-	r.Items = append(r.Items, NewTableItem(id, 470, 340).AsDealer())
+	r.Items = append(r.Items, NewTableItem(id, 595, 315).AsDealer())
 	return r
 }
 
@@ -98,9 +98,9 @@ func (r *Table) Shuffle() *Table {
 func (r *Table) generateChipsForPlayer(idx int) {
 	// add chips
 	slots := [][]int{
-		{140, 610},
-		{640, 20},
-		{640, 640},
+		{140, 600},
+		{890, 10},
+		{890, 600},
 	}
 	counts := map[Color]int{
 		Gray:  10,
