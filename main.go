@@ -817,6 +817,9 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", httpx.H(s.index)).Methods("GET")
+	r.HandleFunc("/log", httpx.H(func(r *http.Request) (*httpx.Response, error) {
+		return httpx.JSON(http.StatusOK, m{}), nil
+	})).Methods("GET")
 
 	r.HandleFunc("/games/new", httpx.H(auth(s.newTable)))
 	r.HandleFunc("/games/{id:[a-z0-9-]+}",

@@ -14,6 +14,8 @@ let isKeyOPressed = false;
 
 let socket = null;
 
+let requestStats = new Stats();
+
 function getSession() {
     const cookies = document.cookie.split('; ');
     const sessionCookie = cookies.find(cookie => cookie.startsWith('session='));
@@ -42,11 +44,14 @@ class AJAX {
 
     async request(method, url, body = null) {
         try {
+            const startedAt = new Date().getTime();
             const response = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: body ? JSON.stringify(body) : null,
             });
+            const duration = new Date().getTime() - startedAt;
+            requestStats.add(duration);
             if (!response.ok) {
                 const err = new Error('HTTP error');
                 err.status = response.status;
@@ -500,6 +505,11 @@ function blockTable(table) {
 
 function isPortraitMode() { return window.innerWidth < window.innerHeight; }
 
+function logStats() {
+    const stats = `min_ms=${requestStats.min()}&max_ms=${requestStats.max()}&median_ms=${requestStats.median()}`;
+    ajax().get(`/log?type=client_stats&` + stats);
+}
+
 function start() {
     const slots = document.querySelectorAll('.slot');
     slots.forEach((slot) => { slot.chips = {}; });
@@ -538,6 +548,8 @@ function start() {
             isKeyOPressed = true;
         }
     });
+
+    setInterval(logStats, 15 * SECOND);
 
     ajax().success((resp) => {
         console.info('initial table fetch:', resp);
