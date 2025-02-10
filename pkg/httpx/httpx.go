@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nchern/vpoker/pkg/logger"
@@ -61,6 +62,12 @@ type Response struct {
 	contentType string
 
 	body []byte
+}
+
+func (r *Response) writeCookies(w http.ResponseWriter) {
+	for _, c := range r.cookies {
+		http.SetCookie(w, c)
+	}
 }
 
 // SetCookie sets a cookie on this response
@@ -140,7 +147,7 @@ func (e *Error) Error() string {
 
 // RequestHandler makes writing http handlers more natural:
 //
-//	each handler would be terminated by returning a response object or error
+//	each handler would be terminated by returning a response object or an error
 type RequestHandler func(r *http.Request) (*Response, error)
 
 func mkRequestID() string {
@@ -154,7 +161,15 @@ func mkRequestID() string {
 	return base32.StdEncoding.EncodeToString(randomBytes)
 }
 
-func writeResponse(r *http.Request, w http.ResponseWriter, code int, body []byte, requestID string) {
+func writeResponse(
+	r *http.Request,
+	w http.ResponseWriter,
+	code int,
+	body []byte,
+	requestID string,
+	clientIP string,
+	startedAt time.Time) {
+
 	w.WriteHeader(code)
 	if _, err := w.Write(body); err != nil {
 		if err != http.ErrHijacked { // if this was called in the context of web sockets, write would not work
@@ -163,31 +178,38 @@ func writeResponse(r *http.Request, w http.ResponseWriter, code int, body []byte
 				r.Method, r.URL, requestID, code, err)
 		}
 	}
-	logger.Info.Printf("%s %s request_id=%s code=%d finish", r.Method, r.URL, requestID, code)
+	logger.Info.Printf("%s %s code=%d request_id=%s client_ip=%s duration_us=%d finish",
+		r.Method, r.URL, code, requestID, clientIP, int(time.Since(startedAt)/time.Microsecond))
 }
 
 // H makes a http handler suitable for usage in go standard http lib out of httpx.RequestHandler
 func H(fn RequestHandler) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		startedAt := time.Now()
 		requestID := r.Header.Get(RequestHeaderName)
 		if requestID == "" {
 			requestID = mkRequestID()
-		}
-		logger.Info.Printf("%s %s request_id=%s start", r.Method, r.URL, requestID)
-		if strings.Contains(r.UserAgent(), "Bot") {
-			writeResponse(r, w, http.StatusForbidden, []byte("bots are not allowed"), requestID)
-			return
 		}
 		clientIP := r.Header.Get("X-Real-IP")
 		if clientIP == "" {
 			clientIP = r.RemoteAddr
 		}
-		logger.Info.Printf("request_id=%s ip=%s browser: %s", requestID, clientIP, r.UserAgent())
+		logger.Info.Printf("%s %s request_id=%s client_ip=%s start", r.Method, r.URL, requestID, clientIP)
+		if strings.Contains(r.UserAgent(), "Bot") {
+			writeResponse(r,
+				w,
+				http.StatusForbidden,
+				[]byte("bots are not allowed"), requestID, clientIP, startedAt)
+			return
+		}
+		logger.Info.Printf("request_id=%s client_ip=%s browser: %s", requestID, clientIP, r.UserAgent())
+		w.Header().Set(RequestHeaderName, requestID)
 		r = r.WithContext(context.WithValue(r.Context(), requestIDKey, requestID))
 		res, err := fn(r)
 		if err != nil {
 			if err == ErrFinished {
-				logger.Info.Printf("%s %s request_id=%s finish", r.Method, r.URL, requestID)
+				logger.Info.Printf("%s %s request_id=%s client_ip=%s finish",
+					r.Method, r.URL, requestID, clientIP)
 				return
 			}
 			msg := ""
@@ -200,22 +222,19 @@ func H(fn RequestHandler) func(http.ResponseWriter, *http.Request) {
 				msg = fmt.Sprintf("%s: %s\n", http.StatusText(code), err)
 			}
 			logger.Error.Printf("%s %s request_id=%s %s", r.Method, r.URL, requestID, err)
-			writeResponse(r, w, code, []byte(msg), requestID)
+			writeResponse(r, w, code, []byte(msg), requestID, clientIP, startedAt)
 			return
 		}
-		for _, c := range res.cookies {
-			http.SetCookie(w, c)
-		}
-		w.Header().Set(RequestHeaderName, requestID)
+		res.writeCookies(w)
 		if res.code == http.StatusFound || res.code == http.StatusMovedPermanently {
-			logger.Info.Printf("%s %s request_id=%s code=%d redirect_to=%s",
-				r.Method, r.URL, requestID, res.code, res.url)
+			logger.Info.Printf("%s %s request_id=%s client_ip=%s code=%d redirect_to=%s",
+				r.Method, r.URL, requestID, clientIP, res.code, res.url)
 			http.Redirect(w, r, res.url, res.code)
 			return
 		}
 		if res.contentType != "" {
 			w.Header().Set("Content-Type", res.contentType)
 		}
-		writeResponse(r, w, res.code, res.body, requestID)
+		writeResponse(r, w, res.code, res.body, requestID, clientIP, startedAt)
 	}
 }

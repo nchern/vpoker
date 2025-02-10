@@ -451,8 +451,9 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	updated.Side = poker.Face
-	// push updates: potentially long operation - check
+	// nolint: errcheck
 	ctx.table.ReadLock(func(t *poker.Table) error {
+		// push updates: potentially long operation - check
 		t.OtherPlayers(ctx.user).NotifyAll(poker.NewPushItems(&updated))
 		return nil
 	})
