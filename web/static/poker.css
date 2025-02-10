@@ -178,6 +178,8 @@ nav a:hover {
 
     width: 360px;
     height: 170px;
+
+    user-select: none;
 }
 
 #open-slot {
@@ -202,6 +204,8 @@ nav a:hover {
 
     left: 200px;
     top: 240px;
+
+    user-select: none;
 }
 
 .dealer {
