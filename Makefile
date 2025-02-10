@@ -77,3 +77,7 @@ service: container-image
 deploy:
 	git push $(MAKEFLAGS) origin master
 	./deploy/deploy.sh
+
+.PHONY: local-run
+local-run:
+	@go run main.go
