@@ -150,8 +150,25 @@ function handleItemDrop(item) {
     }
 }
 
+function isOnOtherPlayerSlot(x, y) {
+    const current_uid = getSession().user_id;
+    const elements = document.elementsFromPoint(x, y);
+    for (let elem of elements) {
+        if (!elem.playerElem) {
+            continue;
+        }
+        if (elem.playerElem.info.owner_id != current_uid) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function onItemMouseDown(e, item) {
     if (e.button != BUTTON_LEFT) {
+        return;
+    }
+    if (item.info.class == 'chip' && isOnOtherPlayerSlot(e.clientX, e.clientY)) {
         return;
     }
 
