@@ -783,6 +783,8 @@ func handleSignalsLoop(srv *server) {
 	os.Exit(0)
 }
 
+// TODO: add metrics
+// TODO: connect metrics to Graphana
 // TODO_DEBUG: debug and test on mobile
 // TODO: decide what to do with abandoned tables. Now they not only stay in memory but also
 // keep websocket groutines/channels forever
