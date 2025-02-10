@@ -35,3 +35,21 @@ class Stats {
       : sorted[mid];
   }
 }
+
+function isKeyPressed(e, key) {
+    try {
+        return e.key.toLowerCase() === key;
+    } catch {
+        return false;
+    }
+}
+
+function showElem(elem) {
+    elem.style.display = 'block';
+}
+
+function hideElem(elem) {
+    elem.style.display = 'none';
+}
+
+function isPortraitMode() { return window.innerWidth < window.innerHeight; }

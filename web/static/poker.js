@@ -5,9 +5,13 @@ const COVER = 'cover';
 const SECOND = 1000;
 const BUTTON_LEFT = 0;
 
+const TAP_MAX_DURATION_MS = 300;
+
 let players = {};
 let tableWidth = 0;
 let tableHeight = 0;
+
+let lastTapTime = 0;
 
 let isKeyTPressed = false;
 let isKeyOPressed = false;
@@ -150,6 +154,7 @@ function onItemMouseDown(e, item) {
     if (e.button != BUTTON_LEFT) {
         return;
     }
+
     let initialMouseX = e.clientX;
     let initialMouseY = e.clientY;
 
@@ -243,9 +248,6 @@ function onCardDblClick(e, card) {
         updateItem(resp.updated);
     }).postJSON(`${window.location.pathname}/update`, card.info)
 }
-
-let lastTapTime = 0;
-const TAP_MAX_DURATION_MS = 300;
 
 function newCard(info, x, y) {
     const card = newItem('card', info, x, y);
@@ -433,14 +435,6 @@ function showCard(card) {
     }).postJSON(`${window.location.pathname}/show_card`, {id: card.info.id});
 }
 
-function isKeyPressed(e, key) {
-    try {
-        return e.key.toLowerCase() === key;
-    } catch {
-        return false;
-    }
-}
-
 function listenPushes() {
     const sock = new WebSocket(`ws://${window.location.host}${window.location.pathname}/listen`);
     sock.onopen = () => {
@@ -481,14 +475,6 @@ function listenPushes() {
     return sock;
 }
 
-function showElem(elem) {
-    elem.style.display = 'block';
-}
-
-function hideElem(elem) {
-    elem.style.display = 'none';
-}
-
 function showError(text) {
     const banner = document.getElementById('error-banner');
     banner.innerHTML = `<p>${text}</p>`;
@@ -503,11 +489,9 @@ function blockTable(table) {
     }
 }
 
-function isPortraitMode() { return window.innerWidth < window.innerHeight; }
-
 function logStats() {
     const stats = `min_ms=${requestStats.min()}&max_ms=${requestStats.max()}&median_ms=${requestStats.median()}`;
-    ajax().get(`/log?type=client_stats&` + stats);
+    ajax().get(`/log?type=client_stats&${stats}`);
 }
 
 function start() {
