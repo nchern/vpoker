@@ -108,44 +108,52 @@ class Rect {
     }
 }
 
+function handleChipDrop(chip, slots) {
+    // XXX: accountChip has to be called in exactly in this handler.
+    // Otherwise the following situation will not be handled correctly:
+    // - when a chip that is being dragged stops under another chip.
+    // In this case the event will be called with the top most item with
+    // regard to z-index.
+    accountChip(chip, slots);
+    slots.forEach(updateSlotsWithMoney);
+}
+
+function handleCardDrop(card, slots) {
+    const rect = new Rect(card);
+    for (let slot of slots) {
+        if (slot.playerElem == null || slot.playerElem === undefined) {
+            continue;
+        }
+        const owner_id = slot.playerElem.info.owner_id;
+        if (getSession().user_id != owner_id) {
+            continue
+        }
+        const slotRect = new Rect(slot);
+        if (rect.centerWithin(slotRect)) {
+            takeCard(card);
+            return;
+        }
+    }
+    const showSlot = document.getElementById('open-slot');
+    if (rect.centerWithin(new Rect(showSlot))) {
+        if (card.info.owner_id != '') {
+            showCard(card);
+        } else {
+            card.info.side = FACE;
+            ajax().success((resp) => { updateItem(resp.updated); }).
+                postJSON(`${window.location.pathname}/update`, card.info);
+        }
+    }
+}
+
 function handleItemDrop(item) {
     const slots = document.querySelectorAll('.slot');
     switch (item.info.class) {
     case 'chip':
-        // XXX: accountChip has to be called in exactly in this handler.
-        // Otherwise the following situation will not be handled correctly:
-        // - when a chip that is being dragged stops under another chip.
-        // In this case the event will be called with the top most item with
-        // regard to z-index.
-        accountChip(item, slots);
-        slots.forEach(updateSlotsWithMoney);
+        handleChipDrop(item, slots);
         break;
     case 'card':
-        const rect = new Rect(item);
-        for (let slot of slots) {
-            if (slot.playerElem == null || slot.playerElem === undefined) {
-                continue;
-            }
-            const owner_id = slot.playerElem.info.owner_id;
-            if (getSession().user_id != owner_id) {
-                continue
-            }
-            const slotRect = new Rect(slot);
-            if (rect.centerWithin(slotRect)) {
-                takeCard(item);
-                return;
-            }
-        }
-        const showSlot = document.getElementById('open-slot');
-        if (rect.centerWithin(new Rect(showSlot))) {
-            if (item.info.owner_id != '') {
-                showCard(item);
-            } else {
-                item.info.side = FACE;
-                ajax().success((resp) => { updateItem(resp.updated); }).
-                    postJSON(`${window.location.pathname}/update`, item.info);
-            }
-        }
+        handleCardDrop(item, slots);
         break;
     }
 }
@@ -211,9 +219,10 @@ function onItemMouseDown(e, item) {
     document.addEventListener('pointermove', onMouseMove);
 
     document.addEventListener('pointerup', () => {
-        ajax().postJSON(`${window.location.pathname}/update`, item.info);
         handleItemDrop(item);
         item.style.zIndex = ''; // to default
+
+        ajax().postJSON(`${window.location.pathname}/update`, item.info);
         // cleanup for this drag-n-drop
         document.removeEventListener('pointermove', onMouseMove);
     }, { once: true });
