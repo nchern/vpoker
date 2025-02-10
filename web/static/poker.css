@@ -68,8 +68,8 @@ nav a:hover {
 
 .card {
     position: absolute;
-    width: 90px;
-    height: 126px;
+    width: 110px;
+    height: 146px;
 
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
