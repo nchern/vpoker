@@ -344,7 +344,7 @@ func (s *server) pushTableUpdates(w http.ResponseWriter, r *http.Request) {
 			case update := <-updates:
 				if err = handlePush(ctx, conn, update); err != nil {
 					if errors.Is(err, errChanClosed) {
-						return nil, err // terminate the loop only if channel got closed
+						return nil, httpx.ErrFinished // terminate the loop only if channel got closed
 					}
 					logger.Error.Printf("ws %s %s", ctx, err)
 				}
@@ -361,7 +361,7 @@ func (s *server) pushTableUpdates(w http.ResponseWriter, r *http.Request) {
 			if errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET) {
 				close(updates)
 				logger.Info.Printf("ws %s pushes_finish", ctx)
-				return nil, err // terminate the loop
+				return nil, httpx.ErrFinished // terminate the loop
 			}
 		}
 	}))(w, r)

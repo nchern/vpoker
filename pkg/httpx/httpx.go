@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -25,6 +26,10 @@ const (
 
 	requestIDKey ContextHeader = "request_id"
 )
+
+// ErrFinished indicates that a request is already finished and no need to write the response
+// Intended to use in case of web sockets when the response is handled by external libs
+var ErrFinished = errors.New("request already finished")
 
 // RequestID returns a request id associated with a given context
 func RequestID(ctx context.Context) string {
@@ -181,6 +186,10 @@ func H(fn RequestHandler) func(http.ResponseWriter, *http.Request) {
 		r = r.WithContext(context.WithValue(r.Context(), requestIDKey, requestID))
 		res, err := fn(r)
 		if err != nil {
+			if err == ErrFinished {
+				logger.Info.Printf("%s %s request_id=%s finish", r.Method, r.URL, requestID)
+				return
+			}
 			msg := ""
 			code := http.StatusInternalServerError
 			switch e := err.(type) {
