@@ -126,6 +126,11 @@ class Rect {
         return this.centerX() >= rect.left() && this.centerX() <= rect.left() + rect.width() &&
                 this.centerY() >= rect.top() && this.centerY() <= rect.top() + rect.height();
     }
+
+    distance(rect) {
+        const d = Math.pow(this.centerX() - rect.centerX(), 2) + Math.pow(this.centerY() - rect.centerY(), 2);
+        return Math.sqrt(d);
+    }
 }
 
 function handleChipDrop(chip, slots) {
@@ -240,6 +245,7 @@ function onItemMouseDown(e, item) {
         if (activePtrID != event.pointerId) {
             return;
         }
+        const itemRect = new Rect(item);
 
         const deltaX = event.clientX - initialMouseX;
         const deltaY = event.clientY - initialMouseY;
@@ -247,9 +253,8 @@ function onItemMouseDown(e, item) {
         const left = parseInt(initialItemX + deltaX);
         const top = parseInt(initialItemY + deltaY);
 
-        const itemRect = new Rect(item);
-        if ((left < 0 || left > tableWidth - itemRect.width() / 2) ||
-            (top < 0 || top > tableHeight - itemRect.height() / 2)
+        if ((left < 0 || left > tableWidth) ||
+            (top < 0 || top > tableHeight)
         ) {
             return; // disallow to move items outside the table
         }
