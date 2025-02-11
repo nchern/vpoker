@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -47,6 +48,8 @@ var (
 	profile    = template.Must(template.ParseFiles("web/profile.html"))
 
 	errChanClosed = errors.New("channel closed")
+
+	usernameValid = regexp.MustCompile("(?i)^[a-z0-9_-]+?$")
 )
 
 type m map[string]any
@@ -522,8 +525,8 @@ func (s *server) updateProfile(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	name := strings.TrimSpace(r.FormValue("user_name"))
-	if name == "" {
-		return httpx.String(http.StatusBadRequest, "empty name"), nil
+	if !usernameValid.MatchString(name) {
+		return httpx.String(http.StatusBadRequest, "invalid characters in user name"), nil
 	}
 	if err := s.users.Update(sess.user.ID, func(u *poker.User) error {
 		u.Name = name
