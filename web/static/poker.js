@@ -369,7 +369,7 @@ function newCard(info, x, y) {
         lastTapTime = currentTime;
     });
 
-    card.render = () => {  renderCard(card); };
+    card.render = () => { renderCard(card); };
     card.render();
     return card;
 }
@@ -412,7 +412,6 @@ function newDealer(info, x, y) {
 
 function newPlayer(info, x, y) {
     const item = newItem('player', info, x, y);
-    // HACK: gets data from global state due to .color property conflict
     const player = players[info.owner_id];
     item.classList.add(player.skin);
     item.innerText = player.Name;
