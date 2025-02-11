@@ -275,6 +275,8 @@ type TableItem struct {
 	ID int `json:"id"`
 	X  int `json:"x"`
 	Y  int `json:"y"`
+
+	ZIndex int `json:"z_index"`
 }
 
 // NewTableItem creates a new table item

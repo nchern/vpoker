@@ -230,6 +230,7 @@ function onItemMouseDown(e, item) {
     let initialItemY = parseInt(item.style.top);
 
     item.style.zIndex = '500'; // push this item to top when being dragged
+    item.info.z_index = 500;
 
     const activePtrID = event.pointerId || 0;
 
@@ -263,7 +264,6 @@ function onItemMouseDown(e, item) {
         if (now_ms - last_ms < MOVE_UPDATE_THROTTLE_MS) {
             return; // throttle down updates to handle slower connections
         }
-        console.log(`move ${now_ms-last_ms}`);
         last_ms = now_ms;
 
         ajax().postJSON(`${window.location.pathname}/update`, item.info);
@@ -276,6 +276,7 @@ function onItemMouseDown(e, item) {
         }
         handleItemDrop(item);
         item.style.zIndex = ''; // to default
+        item.info.z_index = 0;
 
         ajax().postJSON(`${window.location.pathname}/update`, item.info);
         // cleanup for this drag-n-drop
@@ -457,6 +458,9 @@ function updateItem(src) {
     item.info = src;
     item.style.top = `${src.y}px`;
     item.style.left = `${src.x}px`;
+    if (src.z_index != null && src.z_index != undefined) {
+        item.style.zIndex = src.z_index != 0 ? `${src.z_index}` : '';
+    }
     item.render();
 }
 

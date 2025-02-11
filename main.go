@@ -575,6 +575,7 @@ func updateItem(ctx *Context, r *http.Request) (*poker.TableItem, error) {
 			dest.Side = src.Side
 		}
 	}
+	dest.ZIndex = src.ZIndex
 	return dest, nil
 }
 
