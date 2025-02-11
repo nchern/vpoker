@@ -142,10 +142,10 @@ func (r *Table) Join(u *User) []*TableItem {
 }
 
 // OtherPlayers returns all players but a given
-func (r *Table) OtherPlayers(current *User) PlayerList {
+func (r *Table) OtherPlayers(cur *User) PlayerList {
 	var others PlayerList
 	for _, p := range r.Players {
-		if p.ID == current.ID {
+		if p.ID == cur.ID {
 			continue
 		}
 		others = append(others, p)
@@ -178,4 +178,13 @@ func (r *Table) Update(fn func(*Table) error) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	return fn(r)
+}
+
+// NotifyOthers notifies all other players at the table except a given one
+func (r *Table) NotifyOthers(cur *User, p *Push) {
+	r.lock.RLock()
+	others := r.OtherPlayers(cur)
+	r.lock.RUnlock()
+
+	others.NotifyAll(p)
 }

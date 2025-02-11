@@ -374,20 +374,18 @@ func (s *server) shuffle(r *http.Request) (*httpx.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	var notifyThem poker.PlayerList
 	if err := ctx.table.Update(func(t *poker.Table) error {
 		if t.Players[ctx.user.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not at the table")
 		}
 		ctx.table.Shuffle()
-		notifyThem = t.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 	// notify others
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(poker.NewPushRefresh())
+	ctx.table.NotifyOthers(ctx.user, poker.NewPushRefresh())
 	return httpx.Redirect(fmt.Sprintf("/games/%s", ctx.table.ID)), nil
 }
 
@@ -405,7 +403,6 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 		return nil, httpx.NewError(http.StatusBadRequest, "id field is missing")
 	}
 	var updated poker.TableItem
-	var notifyThem poker.PlayerList
 	if err := ctx.table.Update(func(t *poker.Table) error {
 		if t.Players[ctx.user.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not at the table")
@@ -418,13 +415,12 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 			return err
 		}
 		updated = *item
-		notifyThem = t.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(poker.NewPushItems(&updated))
+	ctx.table.NotifyOthers(ctx.user, poker.NewPushItems(&updated))
 	return httpx.JSON(http.StatusOK, &ItemUpdatedResponse{Updated: &updated}), nil
 }
 
@@ -447,7 +443,6 @@ func (s *server) giveCard(r *http.Request) (*httpx.Response, error) {
 		return nil, httpx.NewError(http.StatusBadRequest, "bad params: "+err.Error())
 	}
 	var updated poker.TableItem
-	var notifyThem poker.PlayerList
 	if err := ctx.table.Update(func(t *poker.Table) error {
 		if t.Players[ctx.user.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not at the table")
@@ -461,13 +456,12 @@ func (s *server) giveCard(r *http.Request) (*httpx.Response, error) {
 			return httpx.NewError(http.StatusNotFound, "item not found")
 		}
 		updated = *item.Take(recepient.User)
-		notifyThem = t.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 	updated.Side = poker.Cover
-	notifyThem.NotifyAll(poker.NewPushItems(&updated))
+	ctx.table.NotifyOthers(ctx.user, poker.NewPushItems(&updated))
 	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: &updated}), nil
 }
 
@@ -485,7 +479,6 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 		return nil, httpx.NewError(http.StatusBadRequest, "id field is missing")
 	}
 	var updated poker.TableItem
-	var notifyThem poker.PlayerList
 	if err := ctx.table.Update(func(t *poker.Table) error {
 		if t.Players[ctx.user.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not at the table")
@@ -495,14 +488,13 @@ func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
 			return httpx.NewError(http.StatusNotFound, "item not found")
 		}
 		updated = *item.Take(ctx.user)
-		notifyThem = t.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 	updated.Side = poker.Face
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(poker.NewPushItems(&updated))
+	ctx.table.NotifyOthers(ctx.user, poker.NewPushItems(&updated))
 	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: &updated}), nil
 }
 
@@ -586,7 +578,6 @@ func (s *server) updateTable(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	curUser, table := ctx.user, ctx.table
-	var notifyThem poker.PlayerList
 	var updated poker.TableItem
 	if err := table.Update(func(t *poker.Table) error {
 		up, err := updateItem(ctx, r)
@@ -594,16 +585,13 @@ func (s *server) updateTable(r *http.Request) (*httpx.Response, error) {
 			return err
 		}
 		updated = *up
-		// collect players to push updates to
-		// push itself must happen outside table lock in order to avoid deadlocks
-		notifyThem = table.OtherPlayers(curUser)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 	logger.Debug.Printf("%s update dest=%+v", ctx, updated)
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(poker.NewPushItems(&updated))
+	ctx.table.NotifyOthers(curUser, poker.NewPushItems(&updated))
 	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: &updated}), nil
 }
 
@@ -614,7 +602,6 @@ func (s *server) joinTable(r *http.Request) (*httpx.Response, error) {
 	}
 	var players map[uuid.UUID]*poker.Player
 	var updated []*poker.TableItem
-	var notifyThem poker.PlayerList
 	if err := ctx.table.Update(func(t *poker.Table) error {
 		hasJoined := t.Players[ctx.user.ID] != nil
 		if hasJoined {
@@ -626,13 +613,12 @@ func (s *server) joinTable(r *http.Request) (*httpx.Response, error) {
 		}
 		updated = t.Join(ctx.user)
 		players = t.Players
-		notifyThem = t.OtherPlayers(ctx.user)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 	// push updates: potentially long operation - check
-	notifyThem.NotifyAll(poker.NewPushPlayerJoined(players, updated...))
+	ctx.table.NotifyOthers(ctx.user, poker.NewPushPlayerJoined(players, updated...))
 	return httpx.Redirect(fmt.Sprintf("/games/%s", ctx.table.ID)), nil
 }
 
