@@ -301,7 +301,7 @@ function newItem(cls, info, x, y) {
 
 function setCardBorder(card, user_id, cls) {
     card.classList.add(cls);
-    card.style.borderColor = players[user_id].color || 'purple';
+    card.style.borderColor = players[user_id].color || 'black';
 }
 
 function renderCard(card) {
@@ -311,13 +311,12 @@ function renderCard(card) {
     let css = `card-${side}`
 
     card.style.borderColor = '';
-    card.classList.remove('card-cover', 'card-face', 'owned');
+    card.classList.remove('card-cover', 'card-face', 'owned', 'was_owned');
 
     const owner_id = card.info.owner_id;
     if (owner_id != '') {
         setCardBorder(card, owner_id, 'owned');
-    }
-    if (card.info.prev_owner_id != '') {
+    } else if (card.info.prev_owner_id != '') {
         setCardBorder(card, card.info.prev_owner_id, 'was_owned');
     }
     if (side == FACE) {
