@@ -300,7 +300,8 @@ nav a:hover {
     width: 140px;
     height: 90px;
 
-    z-index: 0;
+    z-index: 10000;
+    pointer-events: none
 }
 
 .player_0 {
