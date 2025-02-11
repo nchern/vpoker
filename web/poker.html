@@ -11,12 +11,61 @@
     <script src="/static/lib.js"></script>
     <script src="/static/poker.js"></script>
     <title>Poker table: {{ .Username }}</title>
+
+    <style>
+    /* Modal dialog */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 2vw;
+        border-radius: 1vw;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        text-align: center;
+        width: 40vw;
+        max-width: 500px;
+        max-width: 500px;
+
+        z-index: 10000;
+    }
+
+    .modal img {
+        width: 100%;
+        height: auto;
+        max-height: 80vh;
+        object-fit: contain;
+    }
+
+    .close-button {
+        position: absolute;
+        color: black;
+        top: 30px;
+        right: 30px;
+        cursor: pointer;
+        font-size: 26px;
+    }
+
+    .overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+    }
+    </style>
 </head>
 <body>
     <nav>
         <a href="/" onclick="return confirm('Are you sure you want to leave?');">Home</a>
         <a href="/games/new" onclick="return confirm('Are you sure you want to leave?');">New game</a>
         <a href="/games/{{ .TableID }}/shuffle" onclick="return confirm('Are you sure?');">Shuffle cards</a>
+        <a href="#" id="rules-btn">Rules</a>
         <a href="/users/profile?ret_path=/games/{{ .TableID }}">Profile: {{ .Username }}</a>
     </nav>
     <div id="error-banner"></div>
@@ -31,9 +80,29 @@
             </div>
         </div>
     </div>
+
+    <div id="overlay" class="overlay"></div>
+    <div id="rules-modal" class="modal">
+        <span class="close-button" id="close-modal">&times;</span>
+        <img src="/static/rules.jpg" alt="Rules">
+    </div>
+
     <script>
         (function() {
             document.addEventListener('DOMContentLoaded', start, false);
+
+            document.getElementById("rules-btn").addEventListener("click", function() {
+                showElem(document.getElementById("rules-modal"));
+                showElem(document.getElementById("overlay"));
+            });
+            document.getElementById("close-modal").addEventListener("click", function() {
+                hideElem(document.getElementById("rules-modal"));
+                hideElem(document.getElementById("overlay"));
+            });
+            document.getElementById("overlay").addEventListener("click", function() {
+                hideElem(document.getElementById("rules-modal"));
+                hideElem(document.getElementById("overlay"));
+            });
         })();
     </script>
 </body>
