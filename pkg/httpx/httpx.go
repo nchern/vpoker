@@ -195,6 +195,7 @@ func H(fn RequestHandler) func(http.ResponseWriter, *http.Request) {
 			clientIP = r.RemoteAddr
 		}
 		logger.Info.Printf("%s %s request_id=%s client_ip=%s start", r.Method, r.URL, requestID, clientIP)
+		logger.Info.Printf("request_id=%s client_ip=%s browser: %s", requestID, clientIP, r.UserAgent())
 		if strings.Contains(r.UserAgent(), "Bot") {
 			writeResponse(r,
 				w,
@@ -202,7 +203,6 @@ func H(fn RequestHandler) func(http.ResponseWriter, *http.Request) {
 				[]byte("bots are not allowed"), requestID, clientIP, startedAt)
 			return
 		}
-		logger.Info.Printf("request_id=%s client_ip=%s browser: %s", requestID, clientIP, r.UserAgent())
 		w.Header().Set(RequestHeaderName, requestID)
 		r = r.WithContext(context.WithValue(r.Context(), requestIDKey, requestID))
 		res, err := fn(r)
