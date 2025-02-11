@@ -286,17 +286,26 @@ function newItem(cls, info, x, y) {
     return item;
 }
 
+function setCardBorder(card, user_id, cls) {
+    card.classList.add(cls);
+    card.style.borderColor = players[user_id].color || 'purple';
+}
+
 function renderCard(card) {
     let text = '';
     let color = 'black';
     let side = card.info.side;
     let css = `card-${side}`
 
-    card.classList.remove('card-cover', 'card-face', 'owned');
     card.style.borderColor = '';
-    if (card.info.owner_id != '') {
-        card.classList.add('owned');
-        card.style.borderColor = players[card.info.owner_id].color || 'purple';
+    card.classList.remove('card-cover', 'card-face', 'owned');
+
+    const owner_id = card.info.owner_id;
+    if (owner_id != '') {
+        setCardBorder(card, owner_id, 'owned');
+    }
+    if (card.info.prev_owner_id != '') {
+        setCardBorder(card, card.info.prev_owner_id, 'was_owned');
     }
     if (side == FACE) {
         text = `${card.info.rank} ${card.info.suit}`;

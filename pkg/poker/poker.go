@@ -270,6 +270,8 @@ type TableItem struct {
 
 	OwnerID string `json:"owner_id"`
 
+	PrevOwnerID string `json:"prev_owner_id"`
+
 	ID int `json:"id"`
 	X  int `json:"x"`
 	Y  int `json:"y"`
@@ -333,6 +335,7 @@ func (ti *TableItem) Show(u *User) error {
 	if !ti.IsOwnedBy(u.ID) {
 		return httpx.NewError(http.StatusForbidden, "not your card")
 	}
+	ti.PrevOwnerID = ti.OwnerID
 	ti.OwnerID = ""
 	ti.Side = Face
 	return nil

@@ -89,6 +89,7 @@ func (r *Table) Shuffle() *Table {
 		it.X = x
 		it.Y = y
 		it.OwnerID = ""
+		it.PrevOwnerID = ""
 		it.Side = Cover
 		x++
 	}

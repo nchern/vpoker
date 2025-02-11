@@ -321,7 +321,10 @@ nav a:hover {
 
 .owned {
     border: 7px solid;
-    /* border-color: purple; */
+}
+
+.was_owned {
+    border: 7px dashed;
 }
 
 .owned_by_0 {
