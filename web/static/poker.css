@@ -98,14 +98,14 @@ nav a:hover {
     z-index: 1;
 }
 
-.card-cover {
+.card_cover {
     background-image: url('/static/card-back-red.png');
     background-position: center;
     background-repeat: no-repeat;
     background-size: 100% 100%;
 }
 
-.card-face {
+.card_face {
     background-image: none;
     background-color: white;
 }

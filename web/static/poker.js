@@ -308,10 +308,10 @@ function renderCard(card) {
     let text = '';
     let color = 'black';
     let side = card.info.side;
-    let css = `card-${side}`
+    let css = `card_${side}`
 
     card.style.borderColor = '';
-    card.classList.remove('card-cover', 'card-face', 'owned', 'was_owned');
+    card.classList.remove('card_cover', 'card_face', 'owned', 'was_owned');
 
     const owner_id = card.info.owner_id;
     if (owner_id != '') {
