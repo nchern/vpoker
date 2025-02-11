@@ -896,6 +896,9 @@ func main() {
 
 	http.Handle("/", r)
 
+	http.Handle("/robots.txt",
+		http.StripPrefix("/", http.FileServer(http.Dir("./web/"))))
+
 	http.Handle("/static/",
 		http.StripPrefix("/static/", http.FileServer(http.Dir("./web/static"))))
 
