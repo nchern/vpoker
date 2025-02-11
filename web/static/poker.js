@@ -6,6 +6,7 @@ const SECOND = 1000;
 const BUTTON_LEFT = 0;
 
 const TAP_MAX_DURATION_MS = 300;
+const MOVE_UPDATE_THROTTLE_MS = 30;
 
 let players = {};
 let tableWidth = 0;
@@ -230,6 +231,8 @@ function onItemMouseDown(e, item) {
 
     const activePtrID = event.pointerId || 0;
 
+    let last_ms = new Date().getTime();
+
     function onMouseMove(event) {
         if (activePtrID != event.pointerId) {
             return;
@@ -253,6 +256,13 @@ function onItemMouseDown(e, item) {
 
         item.info.x = left;
         item.info.y = top;
+
+        const now_ms = new Date().getTime();
+        if (now_ms - last_ms < MOVE_UPDATE_THROTTLE_MS) {
+            return; // throttle down updates to handle slower connections
+        }
+        console.log(`move ${now_ms-last_ms}`);
+        last_ms = now_ms;
 
         ajax().postJSON(`${window.location.pathname}/update`, item.info);
     }
