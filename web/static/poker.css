@@ -38,7 +38,7 @@ nav {
     /* padding: 10px 20px; */
     /* box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); */
     color: white;
-    z-index: 1000;
+    z-index: 10000;
 }
 
 nav a {
@@ -360,6 +360,6 @@ nav a:hover {
     text-align: center;
 
     padding: 10px;
-    z-index: 1000;
+    z-index: 10000;
     width: 100%;
 }
