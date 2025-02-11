@@ -132,6 +132,7 @@ type Context struct {
 
 func (c *Context) String() string {
 	fields := []string{fmt.Sprintf("request_id=%s", httpx.RequestID(c.ctx))}
+	fields = append(fields, fmt.Sprintf("client_ip=%s", c.ctx.Value(httpx.ClientIPKey)))
 	if c.user != nil {
 		fields = append(fields, "user_name="+c.user.Name)
 	}
@@ -725,6 +726,7 @@ func (s *server) newUser(r *http.Request) (*httpx.Response, error) {
 				name = ln.Value
 			}
 		}
+		shouldChangeName := strings.HasPrefix(strings.ToLower(name), "anon")
 		now := time.Now()
 		u := poker.NewUser(uuid.New(), name, now)
 		s.users.Set(u.ID, u)
@@ -734,7 +736,10 @@ func (s *server) newUser(r *http.Request) (*httpx.Response, error) {
 		if err != nil {
 			return nil, err
 		}
-		logger.Info.Printf("%s user_name=%s user_registered", ctx, name)
+		logger.Info.Printf("%s user_name=%s user_registered %s", ctx, name, r.UserAgent())
+		if shouldChangeName {
+			redirectTo = fmt.Sprintf("/users/profile?%s=%s", retPathKey, redirectTo)
+		}
 		return httpx.Redirect(redirectTo).
 			SetCookie(cookie).
 			SetCookie(newLastName(now, name)), nil

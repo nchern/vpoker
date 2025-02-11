@@ -26,6 +26,8 @@ const (
 	RequestHeaderName = "X-Request-Id"
 
 	requestIDKey ContextHeader = "request_id"
+
+	ClientIPKey ContextHeader = "client_ip"
 )
 
 // ErrFinished indicates that a request is already finished and no need to write the response
@@ -205,6 +207,7 @@ func H(fn RequestHandler) func(http.ResponseWriter, *http.Request) {
 		}
 		w.Header().Set(RequestHeaderName, requestID)
 		r = r.WithContext(context.WithValue(r.Context(), requestIDKey, requestID))
+		r = r.WithContext(context.WithValue(r.Context(), ClientIPKey, clientIP))
 		res, err := fn(r)
 		if err != nil {
 			if err == ErrFinished {
