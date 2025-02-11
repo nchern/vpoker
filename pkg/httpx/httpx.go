@@ -178,8 +178,8 @@ func writeResponse(
 				r.Method, r.URL, requestID, code, err)
 		}
 	}
-	logger.Info.Printf("%s %s code=%d request_id=%s client_ip=%s duration_us=%d finish",
-		r.Method, r.URL, code, requestID, clientIP, int(time.Since(startedAt)/time.Microsecond))
+	logger.Info.Printf("%s %s code=%d request_id=%s client_ip=%s duration_ms=%d finish",
+		r.Method, r.URL, code, requestID, clientIP, int(time.Since(startedAt)/time.Millisecond))
 }
 
 // H makes a http handler suitable for usage in go standard http lib out of httpx.RequestHandler
