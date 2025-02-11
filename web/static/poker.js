@@ -20,6 +20,25 @@ let socket = null;
 
 let requestStats = new Stats();
 
+class ByValueIndex {
+    constructor() {
+        this.lookup = {};
+    }
+
+    add(chip) {
+        if (!(chip.info.val in this.lookup)) {
+            this.lookup[chip.info.val] = new Array();
+        }
+        this.lookup[chip.info.val].push(chip);
+    }
+
+    get(val) {
+        return this.lookup[val] || [];
+    }
+}
+
+const chipIndex = new ByValueIndex();
+
 function getSession() {
     const cookies = document.cookie.split('; ');
     const sessionCookie = cookies.find(cookie => cookie.startsWith('session='));
@@ -116,6 +135,23 @@ function handleChipDrop(chip, slots) {
     // regard to z-index.
     accountChip(chip, slots);
     slots.forEach(updateSlotsWithMoney);
+
+    const thisRect = new Rect(chip);
+    for (let ch of chipIndex.get(chip.info.val)) {
+        const rect = new Rect(ch);
+        if (ch.id != chip.id && thisRect.centerWithin(rect)) {
+            const left = rect.left() + 2;
+            const top = rect.top();
+
+            // console.log('YES', left, top, chip.info);
+            chip.style.left = `${left}px`;
+            chip.style.top = `${top}px`;
+
+            chip.info.x = left;
+            chip.info.y = top;
+            return;
+        }
+    }
 }
 
 function handleCardDrop(card, slots) {
@@ -439,6 +475,7 @@ function createItem(info) {
         break;
     case 'chip':
         item = newChip(info, info.x, info.y);
+        chipIndex.add(item);
         break;
     case 'dealer':
         item = newDealer(info, info.x, info.y);
