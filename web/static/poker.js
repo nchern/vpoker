@@ -144,7 +144,6 @@ function handleChipDrop(chip, slots) {
             const left = rect.left() + 2;
             const top = rect.top();
 
-            // console.log('YES', left, top, chip.info);
             chip.style.left = `${left}px`;
             chip.style.top = `${top}px`;
 
@@ -179,11 +178,14 @@ function handleCardDrop(card, slots) {
     if (rect.centerWithin(new Rect(showSlot))) {
         if (card.info.owner_id != '') {
             showCard(card);
-        } else {
-            card.info.side = FACE;
-            ajax().success((resp) => { updateItem(resp.updated); }).
-                postJSON(`${window.location.pathname}/update`, card.info);
         }
+        // TODO: disable auto open in case of non-owned cards
+        // currently this conflicts with turning a card by a double-click
+        // else {
+        //     card.info.side = FACE;
+        //     ajax().success((resp) => { updateItem(resp.updated); }).
+        //         postJSON(`${window.location.pathname}/update`, card.info);
+        // }
     }
 }
 
@@ -308,7 +310,7 @@ function renderCard(card) {
     let text = '';
     let color = 'black';
     let side = card.info.side;
-    let css = `card_${side}`
+    let css = `card_${side}`;
 
     card.style.borderColor = '';
     card.classList.remove('card_cover', 'card_face', 'owned', 'was_owned');
@@ -329,7 +331,7 @@ function renderCard(card) {
 }
 
 function onCardDblClick(e, card) {
-    console.log('DEBUG onCardDblClick', e.button);
+    // console.log('DEBUG onCardDblClick', e.button);
     if (e.button != BUTTON_LEFT) {
         return;
     }
