@@ -269,6 +269,9 @@ function onItemMouseDown(e, item) {
     document.addEventListener('pointermove', onMouseMove);
 
     document.addEventListener('pointerup', () => {
+        if (activePtrID != event.pointerId) {
+            return;
+        }
         handleItemDrop(item);
         item.style.zIndex = ''; // to default
 
