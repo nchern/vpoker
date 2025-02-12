@@ -57,31 +57,31 @@ func shuffle(items []*TableItem) {
 }
 
 // StartGame rearranges all the objects on the table to the initial state
-func (r *Table) StartGame() *Table {
+func (t *Table) StartGame() *Table {
 	id := 0
-	for _, c := range r.Deck {
-		r.Items = append(r.Items, NewTableItem(id, 0, 0).AsCard(c))
+	for _, c := range t.Deck {
+		t.Items = append(t.Items, NewTableItem(id, 0, 0).AsCard(c))
 		id++
 	}
-	r.Shuffle()
+	t.Shuffle()
 	x := 10
 	y := 20
-	for i, c := range r.Chips {
-		if i > 0 && r.Chips[i-1].Color != c.Color {
+	for i, c := range t.Chips {
+		if i > 0 && t.Chips[i-1].Color != c.Color {
 			x = 10
 			y += 100
 		}
-		r.Items = append(r.Items, NewTableItem(id, x, y).AsChip(c))
+		t.Items = append(t.Items, NewTableItem(id, x, y).AsChip(c))
 		x++
 		id++
 	}
-	r.Items = append(r.Items, NewTableItem(id, 595, 315).AsDealer())
-	return r
+	t.Items = append(t.Items, NewTableItem(id, 595, 315).AsDealer())
+	return t
 }
 
 // Shuffle shuffles cards on the table
-func (r *Table) Shuffle() *Table {
-	cards := r.Items[0:52]
+func (t *Table) Shuffle() *Table {
+	cards := t.Items[0:52]
 	shuffle(cards)
 	x := 150
 	y := 20
@@ -93,10 +93,10 @@ func (r *Table) Shuffle() *Table {
 		it.Side = Cover
 		x++
 	}
-	return r
+	return t
 }
 
-func (r *Table) generateChipsForPlayer(idx int) {
+func (t *Table) generateChipsForPlayer(idx int) {
 	// add chips
 	slots := [][]int{
 		{140, 600},
@@ -118,8 +118,8 @@ func (r *Table) generateChipsForPlayer(idx int) {
 			y = slot[1] + chipWidth
 		}
 		for i := 0; i < counts[ci.Color]; i++ {
-			item := NewTableItem(len(r.Items), x, y).AsChip(&ci)
-			r.Items = append(r.Items, item)
+			item := NewTableItem(len(t.Items), x, y).AsChip(&ci)
+			t.Items = append(t.Items, item)
 			x += 2
 		}
 		x += chipWidth
@@ -127,24 +127,24 @@ func (r *Table) generateChipsForPlayer(idx int) {
 }
 
 // Join joins a user
-func (r *Table) Join(u *User) []*TableItem {
-	index := len(r.Players) % len(playerColors)
+func (t *Table) Join(u *User) []*TableItem {
+	index := len(t.Players) % len(playerColors)
 	p := newPlayer(u, playerColors[index])
 	p.Index = index
 	p.Skin = fmt.Sprintf("player_%d", index)
 
-	r.Players[u.ID] = p
-	startIdx := len(r.Items)
-	r.Items = append(r.Items, NewTableItem(len(r.Items), 0, 0).AsPlayer(p))
+	t.Players[u.ID] = p
+	startIdx := len(t.Items)
+	t.Items = append(t.Items, NewTableItem(len(t.Items), 0, 0).AsPlayer(p))
 
-	r.generateChipsForPlayer(index)
-	return r.Items[startIdx:]
+	t.generateChipsForPlayer(index)
+	return t.Items[startIdx:]
 }
 
 // OtherPlayers returns all players but a given
-func (r *Table) OtherPlayers(cur *User) PlayerList {
+func (t *Table) OtherPlayers(cur *User) PlayerList {
 	var others PlayerList
-	for _, p := range r.Players {
+	for _, p := range t.Players {
 		if p.ID == cur.ID {
 			continue
 		}
@@ -154,9 +154,9 @@ func (r *Table) OtherPlayers(cur *User) PlayerList {
 }
 
 // DeepCopy creates a deep copy of this table via serialisation
-func (r *Table) DeepCopy() (*Table, error) {
+func (t *Table) DeepCopy() (*Table, error) {
 	var dest *Table
-	b, err := json.Marshal(&r)
+	b, err := json.Marshal(&t)
 	if err != nil {
 		return nil, err
 	}
@@ -167,24 +167,24 @@ func (r *Table) DeepCopy() (*Table, error) {
 }
 
 // ReadLock performs thread-safe read of this object
-func (r *Table) ReadLock(fn func(*Table) error) error {
-	r.lock.RLock()
-	defer r.lock.RUnlock()
-	return fn(r)
+func (t *Table) ReadLock(fn func(*Table) error) error {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	return fn(t)
 }
 
 // Update performs thread-safe update of this object
-func (r *Table) Update(fn func(*Table) error) error {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	return fn(r)
+func (t *Table) Update(fn func(*Table) error) error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	return fn(t)
 }
 
 // NotifyOthers notifies all other players at the table except a given one
-func (r *Table) NotifyOthers(cur *User, p *Push) {
-	r.lock.RLock()
-	others := r.OtherPlayers(cur)
-	r.lock.RUnlock()
+func (t *Table) NotifyOthers(cur *User, p *Push) {
+	t.lock.RLock()
+	others := t.OtherPlayers(cur)
+	t.lock.RUnlock()
 
 	others.NotifyAll(p)
 }
