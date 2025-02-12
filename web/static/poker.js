@@ -119,6 +119,11 @@ class Rect {
         return this.top() + this.height()/2;
     }
 
+    contains(x, y) {
+        return x >= this.left() && x <= this.left() + this.width() &&
+                y >= this.top() && y <= this.top() + this.height();
+    }
+
     centerWithin(rect) {
         return this.centerX() >= rect.left() && this.centerX() <= rect.left() + rect.width() &&
                 this.centerY() >= rect.top() && this.centerY() <= rect.top() + rect.height();
@@ -203,15 +208,21 @@ function handleItemDrop(item) {
     }
 }
 
-function isOnOtherPlayerSlot(x, y) {
+function isOnOtherPlayerSlot(item) {
+    // XXX: document.elementsFromPoint does not return controls
+    // if pointer-events: none, hence can't use it
+    const itemRect = new Rect(item);
     const current_uid = getSession().user_id;
-    const elements = document.elementsFromPoint(x, y);
-    for (let elem of elements) {
-        if (!elem.playerElem) {
+    const slots = document.querySelectorAll('.slot');
+    for (let slot of slots) {
+        if (!slot.playerElem) {
             continue;
         }
-        if (elem.playerElem.info.owner_id != current_uid) {
-            return true;
+        const rect = new Rect(slot);
+        if (itemRect.centerWithin(rect)) {
+            if (slot.playerElem.info.owner_id != current_uid) {
+                return true;
+            }
         }
     }
     return false;
@@ -221,7 +232,7 @@ function onItemMouseDown(e, item) {
     if (e.button != BUTTON_LEFT) {
         return;
     }
-    if (item.info.class == 'chip' && isOnOtherPlayerSlot(e.clientX, e.clientY)) {
+    if (item.info.class == 'chip' && isOnOtherPlayerSlot(item)) {
         return;
     }
 
@@ -417,6 +428,7 @@ function newPlayer(info, x, y) {
     const item = newItem('player', info, x, y);
     const player = STATE.players[info.owner_id];
     item.classList.add(player.skin);
+    item.classList.add('fancy_text');
     item.innerText = player.Name;
 
     const slot = document.getElementById(`slot-${player.index}`);

@@ -170,7 +170,13 @@ nav a:hover {
     background-image: url('/static/chip-black.png');
 }
 
-.player_slot {
+.fancy_text {
+    /* fancy text style */
+    -webkit-text-stroke: 5px black;
+    paint-order: stroke fill;
+}
+
+.slot {
     background-color: transparent;
 
     border: 2px dashed white;
@@ -178,14 +184,23 @@ nav a:hover {
 
     color: white;
 
+    font-family: Helvetica;
     font-size: 26px;
+    font-weight: bold;
 
     position: absolute;
 
-    width: 400px;
-    height: 180px;
+    text-align: left;
 
     user-select: none;
+
+    pointer-events: none;
+    z-index: 10000;
+}
+
+.player_slot {
+    height: 180px;
+    width: 400px;
 }
 
 #slot-0 {
@@ -204,29 +219,11 @@ nav a:hover {
 }
 
 #open-slot {
-    -webkit-text-stroke: 5px black;
-    paint-order: stroke fill;
-
-    background-color: transparent;
-    border: 2px dashed white;
-    border-radius: 8px;
-
-    font-family: Helvetica;
-    font-weight: bold;
-
-    font-size: 26px;
-
-    width: 600px;
-    height: 290px;
-
-    position: absolute;
-
-    text-align: left;
-
     left: 340px;
     top: 215px;
 
-    user-select: none;
+    height: 290px;
+    width: 600px;
 }
 
 .dealer {
@@ -267,20 +264,9 @@ nav a:hover {
 
 /* Player styles */
 .player {
-    -webkit-text-stroke: 5px black;
-    paint-order: stroke fill;
-
     position: absolute;
 
     background-color: transparent;
-    /* background-image: url('/static/player.png'); */
-    /* opacity: 1; */
-
-    /* border: 1px solid; */
-    /* border-color: black; */
-    /* border-radius: 50%; /1* Make it circular *1/ */
-
-    /* box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3); /1* Add a 3D effect *1/ */
 
     color: black;
     display: flex;
