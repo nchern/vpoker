@@ -484,26 +484,23 @@ function updateTable(resp) {
 }
 
 function createItem(info) {
-    const table = document.getElementById('card-table');
-    let item = null;
-    switch (info.class) {
-    case 'card':
-        item = newCard(info, info.x, info.y);
-        break;
-    case 'chip':
-        item = newChip(info, info.x, info.y);
-        STATE.chipIndex.add(item);
-        break;
-    case 'dealer':
-        item = newDealer(info, info.x, info.y);
-        break;
-    case 'player':
-        item = newPlayer(info, info.x, info.y);
-        break;
-    default:
-        throw new Exception(`unknown item class: ${info.class}`)
-    }
-    table.appendChild(item);
+    let item = function() {
+        switch (info.class) {
+        case 'card':
+            return newCard(info, info.x, info.y);
+        case 'chip':
+            it = newChip(info, info.x, info.y);
+            STATE.chipIndex.add(it);
+            return it;
+        case 'dealer':
+            return newDealer(info, info.x, info.y);
+        case 'player':
+            return newPlayer(info, info.x, info.y);
+        default:
+            throw new Exception(`unknown item class: ${info.class}`)
+        }
+    }();
+    STATE.theTable.appendChild(item);
     return item;
 }
 
