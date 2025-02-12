@@ -99,9 +99,9 @@ func (t *Table) Shuffle() *Table {
 func (t *Table) generateChipsForPlayer(idx int) {
 	// add chips
 	slots := [][]int{
-		{140, 600},
+		{140, 545},
 		{890, 10},
-		{890, 600},
+		{890, 545},
 	}
 	counts := map[Color]int{
 		Gray:  10,

@@ -267,8 +267,10 @@ function onItemMouseDown(e, item) {
         const top = parseInt(initialItemY + deltaY);
 
         const tableRect = new Rect(STATE.theTable);
-        if ((left < 0 || left > tableRect.width()) ||
-            (top < 0 || top > tableRect.height())
+        const itemRect = new Rect(item);
+
+        if ((left < 0 || left > tableRect.width() - itemRect.width()) ||
+            (top < 0 || top > tableRect.height() - itemRect.height())
         ) {
             return; // disallow to move items outside the table
         }

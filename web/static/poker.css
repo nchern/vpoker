@@ -64,8 +64,6 @@ nav a:hover {
     border-radius: 10px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
 
-    overflow: auto;
-
     touch-action: none;
 }
 
@@ -204,34 +202,40 @@ nav a:hover {
 }
 
 #slot-0 {
-    top: 590px;
+    top: 535px;
     left: 0px;
 }
 
 #slot-1 {
     top: 0px;
-    left: 870px;
+    left: 880px;
 }
 
 #slot-2 {
-    top: 590px;
-    left: 870px;
+    top: 535px;
+    left: 880px;
 }
 
 #round-slot {
     left: 340px;
-    top: 240px;
+    top: 215px;
 
     height: 290px;
     width: 600px;
 }
 
 #game-slot {
+    display: flex;
+
     left: 540px;
-    top: 590px;
+    top: 535px;
 
     height: 150px;
     width: 200px;
+
+    align-items: center; /* Vertical centering */
+    justify-content: center;
+
 }
 
 .dealer {
@@ -300,7 +304,7 @@ nav a:hover {
 
 .player_0 {
     color: #FF5733;  /* Red */
-    top: 680px;
+    top: 630px;
     left: 0px;
 }
 
@@ -312,7 +316,7 @@ nav a:hover {
 
 .player_2 {
     color: #2ECC71; /* Green */
-    top: 680px;
+    top: 640px;
     left: 1136px;
 }
 
