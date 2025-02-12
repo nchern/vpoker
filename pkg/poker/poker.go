@@ -2,6 +2,7 @@ package poker
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -372,4 +373,20 @@ func (ti *TableItem) ApplyVisibilityRules(curUser *User) {
 		ti.Rank = ""
 		ti.Suit = BlankSuit
 	}
+}
+
+func (ti *TableItem) UpdateFrom(curUser *User, src *TableItem) error {
+	if ti.Class != src.Class {
+		return errors.New("attempt to update readonly field .Class")
+	}
+	ti.X = src.X
+	ti.Y = src.Y
+	if ti.Side != src.Side {
+		if !ti.IsOwned() || ti.IsOwnedBy(curUser.ID) {
+			// card can be turned if it's not taken or by the owner only
+			ti.Side = src.Side
+		}
+	}
+	ti.ZIndex = src.ZIndex
+	return nil
 }

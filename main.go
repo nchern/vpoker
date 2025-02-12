@@ -49,7 +49,7 @@ var (
 
 	errChanClosed = errors.New("channel closed")
 
-	usernameValid = regexp.MustCompile("(?i)^[a-z0-9_-]+?$")
+	usernameValidator = regexp.MustCompile("(?i)^[a-z0-9_-]+?$")
 )
 
 type m map[string]any
@@ -518,7 +518,7 @@ func (s *server) updateProfile(r *http.Request) (*httpx.Response, error) {
 		return nil, err
 	}
 	name := strings.TrimSpace(r.FormValue("user_name"))
-	if !usernameValid.MatchString(name) {
+	if !usernameValidator.MatchString(name) {
 		return httpx.String(http.StatusBadRequest, "invalid characters in user name"), nil
 	}
 	if err := s.users.Update(sess.user.ID, func(u *poker.User) error {
@@ -557,18 +557,9 @@ func updateItem(ctx *Context, r *http.Request) (*poker.TableItem, error) {
 	if dest == nil {
 		return nil, httpx.NewError(http.StatusNotFound, "item not found")
 	}
-	if dest.Class != src.Class {
-		return nil, httpx.NewError(http.StatusBadRequest, "attempt to update readonly field .Class")
+	if err := dest.UpdateFrom(curUser, &src); err != nil {
+		return nil, httpx.NewError(http.StatusBadRequest, err.Error())
 	}
-	dest.X = src.X
-	dest.Y = src.Y
-	if dest.Side != src.Side {
-		if !dest.IsOwned() || dest.IsOwnedBy(curUser.ID) {
-			// card can be turned if it's not taken or by the owner only
-			dest.Side = src.Side
-		}
-	}
-	dest.ZIndex = src.ZIndex
 	return dest, nil
 }
 
@@ -819,7 +810,6 @@ func handleSignalsLoop(srv *server) {
 
 // TODO: add metrics
 // TODO: connect metrics to Graphana
-// TODO_DEBUG: debug and test on mobile
 // TODO: decide what to do with abandoned tables. Now they not only stay in memory but also
 // keep websocket groutines/channels forever
 func main() {
