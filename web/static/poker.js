@@ -181,7 +181,7 @@ function handleCardDrop(card, slots) {
             return;
         }
     }
-    const showSlot = document.getElementById('open-slot');
+    const showSlot = document.getElementById('round-slot');
     if (rect.centerWithin(new Rect(showSlot))) {
         if (card.info.owner_id != '') {
             showCard(card);

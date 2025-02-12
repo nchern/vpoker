@@ -218,12 +218,20 @@ nav a:hover {
     left: 870px;
 }
 
-#open-slot {
+#round-slot {
     left: 340px;
-    top: 215px;
+    top: 240px;
 
     height: 290px;
     width: 600px;
+}
+
+#game-slot {
+    left: 540px;
+    top: 590px;
+
+    height: 150px;
+    width: 200px;
 }
 
 .dealer {
