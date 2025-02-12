@@ -14,9 +14,6 @@ let tableHeight = 0;
 
 let lastTapTime = 0;
 
-let isKeyTPressed = false;
-let isKeyOPressed = false;
-
 let socket = null;
 
 let requestStats = new Stats();
@@ -162,7 +159,7 @@ function handleChipDrop(chip, slots) {
 function handleCardDrop(card, slots) {
     const rect = new Rect(card);
     for (let slot of slots) {
-        if (!slot.playerElem || !slot.playerElem) {
+        if (!slot.playerElem) {
             continue;
         }
         const slotRect = new Rect(slot);
@@ -245,7 +242,6 @@ function onItemMouseDown(e, item) {
         if (activePtrID != event.pointerId) {
             return;
         }
-        const itemRect = new Rect(item);
 
         const deltaX = event.clientX - initialMouseX;
         const deltaY = event.clientY - initialMouseY;
@@ -356,10 +352,10 @@ function newCard(info, x, y) {
         if (e.button != BUTTON_LEFT) {
             return;
         }
-        if (e.ctrlKey || isKeyTPressed || e.metaKey) {
+        if (e.ctrlKey || e.metaKey) {
             takeCard(card);
         }
-        if (e.shiftKey || isKeyOPressed) {
+        if (e.shiftKey) {
             showCard(card);
         }
     });
@@ -486,17 +482,6 @@ function updateTable(resp) {
     updateItems(resp.items);
 }
 
-function refresh(items) {
-    ajax().success((resp) => {
-        updateTable(resp)
-    }).error((status, msg) => {
-        if (status === 401) {
-            window.location = '/';
-        }
-        console.error('refersh', status, msg);
-    }).get(`${window.location.pathname}/state`);
-}
-
 function createItem(info) {
     const table = document.getElementById('card-table');
     let item = null;
@@ -620,22 +605,6 @@ function start() {
     const tableRect = new Rect(theTable);
     tableWidth = tableRect.width();
     tableHeight = tableRect.height();
-    document.addEventListener('keydown', (event) => {
-        if (isKeyPressed(event, 't')) {
-            isKeyTPressed = true;
-        }
-        if (isKeyPressed(event, 'o')) {
-            isKeyOPressed = true;
-        }
-    });
-    document.addEventListener('keyup', (event) => {
-        if (isKeyPressed(event, 't')) {
-            isKeyTPressed = false;
-        }
-        if (isKeyPressed(event, 'o')) {
-            isKeyOPressed = true;
-        }
-    });
 
     setInterval(logStats, 15 * SECOND);
 
