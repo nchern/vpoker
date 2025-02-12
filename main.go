@@ -725,28 +725,21 @@ func (s *server) newUser(r *http.Request) (*httpx.Response, error) {
 }
 
 func (s *server) index(r *http.Request) (*httpx.Response, error) {
-	logger.Debug.Printf("index.begin user_count=%d", s.users.Len())
-	sess := &session{}
-	cookie, err := r.Cookie("session")
-	if err != nil || cookie.Value == "" {
-		// no session cookie
-		return httpx.Redirect("/users/new"), nil
+	username := "anonymous"
+	var emptySess *http.Cookie
+	sess, err := getUserFromSession(r, s.users)
+	if err != nil {
+		emptySess = newEmptySession()
 	}
-	logger.Debug.Printf("cookie_exists: session=%s", cookie.Value)
-	if err := sess.parseFromCookie(cookie.Value); err != nil {
-		logger.Info.Printf("bad cookie: %s", err)
-		return httpx.Redirect("/users/new").
-			SetCookie(newEmptySession()), nil
-	}
-	curUser, found := s.users.Get(sess.UserID)
-	if !found {
-		return httpx.Redirect("/users/new").
-			SetCookie(newEmptySession()), nil
+	if sess != nil && sess.user != nil {
+		username = sess.user.Name
+	} else {
+		emptySess = newEmptySession()
 	}
 
 	return httpx.RenderFile(http.StatusOK, "web/index.html", m{
-		"Username": curUser.Name,
-	})
+		"Username": username,
+	}, emptySess)
 }
 
 func (s *server) loadState() error { return s.state.load(s.users, s.tables) }
@@ -769,6 +762,7 @@ func getUserFromSession(r *http.Request, users poker.UserMap) (*session, error) 
 		return sess, nil // no cookie - return new empty session
 	}
 	if err := sess.parseFromCookie(cookie.Value); err != nil {
+		logger.Info.Printf("bad cookie: %s", err)
 		return nil, err
 	}
 	u, found := users.Get(sess.UserID)
@@ -782,7 +776,7 @@ func authenticated(users poker.UserMap, f httpx.RequestHandler) httpx.RequestHan
 	return func(r *http.Request) (*httpx.Response, error) {
 		sess, err := getUserFromSession(r, users)
 		if err != nil {
-			return nil, err
+			return httpx.String(http.StatusUnauthorized), nil
 		}
 		if sess.user == nil {
 			return httpx.String(http.StatusUnauthorized), nil
@@ -847,7 +841,7 @@ func main() {
 		return httpx.JSON(http.StatusOK, m{}), nil
 	})).Methods("GET")
 
-	r.HandleFunc("/games/new", httpx.H(auth(s.newTable)))
+	r.HandleFunc("/games/new", httpx.H(redirectIfNoAuth("/users/new", s.newTable)))
 	r.HandleFunc("/games/{id:[a-z0-9-]+}",
 		httpx.H(redirectIfNoAuth("/users/new", s.renderTable))).Methods("GET")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/state",
@@ -869,7 +863,7 @@ func main() {
 
 	r.HandleFunc("/users/new", httpx.H(s.newUser))
 	r.HandleFunc("/users/profile",
-		httpx.H(auth(s.profile))).
+		httpx.H(redirectIfNoAuth("/users/new", s.profile))).
 		Methods("GET")
 	r.HandleFunc("/users/profile",
 		httpx.H(auth(s.updateProfile))).
