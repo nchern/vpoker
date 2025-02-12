@@ -8,16 +8,6 @@ const BUTTON_LEFT = 0;
 const TAP_MAX_DURATION_MS = 300;
 const MOVE_UPDATE_THROTTLE_MS = 30;
 
-let players = {};
-let tableWidth = 0;
-let tableHeight = 0;
-
-let lastTapTime = 0;
-
-let socket = null;
-
-let requestStats = new Stats();
-
 class ByValueIndex {
     constructor() {
         this.lookup = {};
@@ -35,7 +25,17 @@ class ByValueIndex {
     }
 }
 
-const chipIndex = new ByValueIndex();
+const STATE = {
+    'players': {},
+    'theTable': null,
+
+    'chipIndex': new ByValueIndex(),
+
+    'socket': null,
+    'requestStats': new Stats(),
+
+    'lastTapTime': 0,
+}
 
 function getSession() {
     const cookies = document.cookie.split('; ');
@@ -72,7 +72,7 @@ class AJAX {
                 body: body ? JSON.stringify(body) : null,
             });
             const duration = new Date().getTime() - startedAt;
-            requestStats.add(duration);
+            STATE.requestStats.add(duration);
             if (!response.ok) {
                 const err = new Error('HTTP error');
                 err.status = response.status;
@@ -140,7 +140,7 @@ function handleChipDrop(chip, slots) {
     slots.forEach(updateSlotsWithMoney);
 
     const thisRect = new Rect(chip);
-    for (let ch of chipIndex.get(chip.info.val)) {
+    for (let ch of STATE.chipIndex.get(chip.info.val)) {
         const rect = new Rect(ch);
         if (ch.id != chip.id && thisRect.centerWithin(rect)) {
             const left = rect.left() + 2;
@@ -249,8 +249,9 @@ function onItemMouseDown(e, item) {
         const left = parseInt(initialItemX + deltaX);
         const top = parseInt(initialItemY + deltaY);
 
-        if ((left < 0 || left > tableWidth) ||
-            (top < 0 || top > tableHeight)
+        const tableRect = new Rect(STATE.theTable);
+        if ((left < 0 || left > tableRect.width()) ||
+            (top < 0 || top > tableRect.height())
         ) {
             return; // disallow to move items outside the table
         }
@@ -305,7 +306,7 @@ function newItem(cls, info, x, y) {
 
 function setCardBorder(card, user_id, cls) {
     card.classList.add(cls);
-    card.style.borderColor = players[user_id].color || 'black';
+    card.style.borderColor = STATE.players[user_id].color || 'black';
 }
 
 function renderCard(card) {
@@ -363,12 +364,12 @@ function newCard(info, x, y) {
 
     card.addEventListener('touchend', (e) => {
         const currentTime = new Date().getTime();
-        const tapInterval = currentTime - lastTapTime;
+        const tapInterval = currentTime - STATE.lastTapTime;
         if (tapInterval < TAP_MAX_DURATION_MS) {
             e.button = BUTTON_LEFT;
             onCardDblClick(e, card);
         }
-        lastTapTime = currentTime;
+        STATE.lastTapTime = currentTime;
     });
 
     card.render = () => { renderCard(card); };
@@ -414,7 +415,7 @@ function newDealer(info, x, y) {
 
 function newPlayer(info, x, y) {
     const item = newItem('player', info, x, y);
-    const player = players[info.owner_id];
+    const player = STATE.players[info.owner_id];
     item.classList.add(player.skin);
     item.innerText = player.Name;
 
@@ -437,7 +438,7 @@ function updateSlotsWithMoney(slot) {
     const vals = Object.values(slot.chips).map(chip => chip.info.val);
     const total = vals.reduce((s, x) => s + x, 0);;
     if (slot.playerElem) {
-        const player = players[slot.playerElem.info.owner_id];
+        const player = STATE.players[slot.playerElem.info.owner_id];
         slot.playerElem.innerText = `${player.Name}: ${total}$`;
     } else {
         slot.innerText = `${total}$`;
@@ -478,7 +479,7 @@ function updateItems(items) {
 }
 
 function updateTable(resp) {
-    players = resp.players;
+    STATE.players = resp.players;
     updateItems(resp.items);
 }
 
@@ -491,7 +492,7 @@ function createItem(info) {
         break;
     case 'chip':
         item = newChip(info, info.x, info.y);
-        chipIndex.add(item);
+        STATE.chipIndex.add(item);
         break;
     case 'dealer':
         item = newDealer(info, info.x, info.y);
@@ -579,7 +580,9 @@ function blockTable(table) {
 }
 
 function logStats() {
-    const stats = `min_ms=${requestStats.min()}&max_ms=${requestStats.max()}&median_ms=${requestStats.median()}`;
+    const stats = `min_ms=${STATE.requestStats.min()}` +
+        `&max_ms=${STATE.requestStats.max()}` +
+        `&median_ms=${STATE.requestStats.median()}`;
     ajax().get(`/log?type=client_stats&${stats}`);
 }
 
@@ -587,30 +590,25 @@ function start() {
     const slots = document.querySelectorAll('.slot');
     slots.forEach((slot) => { slot.chips = {}; });
 
-    const theTable = document.getElementById('card-table');
+    STATE.theTable = document.getElementById('card-table');
     window.addEventListener("resize", function() {
         if (isPortraitMode()) {
-            blockTable(theTable);
+            blockTable(STATE.theTable);
         } else {
             location.reload();
         }
     });
     if (isPortraitMode()) {
-        blockTable(theTable);
+        blockTable(STATE.theTable);
         return;
     } else {
         hideElem(document.getElementById('error-banner'));
     }
-
-    const tableRect = new Rect(theTable);
-    tableWidth = tableRect.width();
-    tableHeight = tableRect.height();
-
     setInterval(logStats, 15 * SECOND);
 
     ajax().success((resp) => {
         console.info('initial table fetch:', resp);
         updateTable(resp);
-        socket = listenPushes();
+        STATE.socket = listenPushes();
     }).get(`${window.location.pathname}/state?cw=${window.screen.availWidth}&ch=${window.screen.availHeight}&iw=${window.innerWidth}&ih=${window.innerHeight}`);
 }
