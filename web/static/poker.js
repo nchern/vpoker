@@ -26,6 +26,8 @@ class ByValueIndex {
 }
 
 const STATE = {
+    'current_uid': 0,
+
     'players': {},
     'theTable': null,
 
@@ -170,7 +172,7 @@ function handleCardDrop(card, slots) {
         const slotRect = new Rect(slot);
         const owner_id = slot.playerElem.info.owner_id;
         if (rect.centerWithin(slotRect)) {
-            if (getSession().user_id == owner_id) {
+            if (STATE.current_uid == owner_id) {
                 takeCard(card);
             } else {
                 if (card.info.owner_id == '') {
@@ -212,7 +214,7 @@ function isOnOtherPlayerSlot(item) {
     // XXX: document.elementsFromPoint does not return controls
     // if pointer-events: none, hence can't use it
     const itemRect = new Rect(item);
-    const current_uid = getSession().user_id;
+    const current_uid = STATE.current_uid;
     const slots = document.querySelectorAll('.slot');
     for (let slot of slots) {
         if (!slot.playerElem) {
@@ -349,7 +351,7 @@ function onCardDblClick(e, card) {
     if (e.button != BUTTON_LEFT) {
         return;
     }
-    if (card.info.owner_id != '' && card.info.owner_id != getSession().user_id) {
+    if (card.info.owner_id != '' && card.info.owner_id != STATE.current_uid) {
         return; // can't turn other player cards cards
     }
     card.info.side = card.info.side == COVER ? FACE: COVER;
@@ -526,7 +528,7 @@ function takeCard(card) {
 }
 
 function showCard(card) {
-    if (card.info.owner_id != getSession().user_id) {
+    if (card.info.owner_id != STATE.current_uid) {
         return; // can't show not owned cards
     }
     ajax().success((resp) => {
@@ -599,6 +601,7 @@ function start() {
     const slots = document.querySelectorAll('.slot');
     slots.forEach((slot) => { slot.chips = {}; });
 
+    STATE.current_uid = getSession().user_id;
     STATE.theTable = document.getElementById('card-table');
     window.addEventListener("resize", function() {
         if (isPortraitMode()) {
