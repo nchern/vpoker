@@ -137,6 +137,10 @@ class Rect {
     }
 }
 
+function isOwned(info) { return info.owner_id != ''; }
+
+function isOwnedBy(info, user_id) { return info.owner_id == user_id; }
+
 function handleChipDrop(chip, slots) {
     // XXX: accountChip has to be called in exactly in this handler.
     // Otherwise the following situation will not be handled correctly:
@@ -175,7 +179,7 @@ function handleCardDrop(card, slots) {
             if (STATE.current_uid == owner_id) {
                 takeCard(card);
             } else {
-                if (card.info.owner_id == '') {
+                if (!isOwned(card.info)) {
                     ajax().success((resp) => { updateItem(resp.updated); }).
                         postJSON(`${window.location.pathname}/give_card?id=${card.info.id}&user_id=${owner_id}`);
                 }
@@ -185,7 +189,7 @@ function handleCardDrop(card, slots) {
     }
     const showSlot = document.getElementById('round-slot');
     if (rect.centerWithin(new Rect(showSlot))) {
-        if (card.info.owner_id != '') {
+        if (isOwned(card.info)) {
             showCard(card);
         }
         // TODO: disable auto open in case of non-owned cards
@@ -222,7 +226,7 @@ function isOnOtherPlayerSlot(item) {
         }
         const rect = new Rect(slot);
         if (itemRect.centerWithin(rect)) {
-            if (slot.playerElem.info.owner_id != current_uid) {
+            if (!isOwnedBy(slot.playerElem.info, current_uid)) {
                 return true;
             }
         }
@@ -332,7 +336,7 @@ function renderCard(card) {
     card.classList.remove('card_cover', 'card_face', 'owned', 'was_owned');
 
     const owner_id = card.info.owner_id;
-    if (owner_id != '') {
+    if (isOwned(card.info)) {
         setCardBorder(card, owner_id, 'owned');
     } else if (card.info.prev_owner_id != '') {
         setCardBorder(card, card.info.prev_owner_id, 'was_owned');
@@ -351,7 +355,7 @@ function onCardDblClick(e, card) {
     if (e.button != BUTTON_LEFT) {
         return;
     }
-    if (card.info.owner_id != '' && card.info.owner_id != STATE.current_uid) {
+    if (isOwned(card.info) && !isOwnedBy(card.info, STATE.current_uid)) {
         return; // can't turn other player cards cards
     }
     card.info.side = card.info.side == COVER ? FACE: COVER;
@@ -519,7 +523,7 @@ function createItem(info) {
 }
 
 function takeCard(card) {
-    if (card.info.owner_id != '') {
+    if (isOwned(card.info)) {
         return; // already owned
     }
     ajax().success((resp) => {
@@ -528,7 +532,7 @@ function takeCard(card) {
 }
 
 function showCard(card) {
-    if (card.info.owner_id != STATE.current_uid) {
+    if (!isOwnedBy(card.info, STATE.current_uid)) {
         return; // can't show not owned cards
     }
     ajax().success((resp) => {
