@@ -217,6 +217,14 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+func parseForm(r *http.Request, frm any) error {
+	if err := r.ParseForm(); err != nil {
+		return err
+	}
+	var decoder = schema.NewDecoder()
+	return decoder.Decode(frm, r.Form)
+}
+
 type ItemUpdatedResponse struct {
 	Updated *poker.TableItem `json:"updated"`
 }
@@ -425,23 +433,18 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 }
 
 func (s *server) giveCard(r *http.Request) (*httpx.Response, error) {
-	type form struct {
-		ID     int       `schema:"id,reqiured"`
-		UserID uuid.UUID `schema:"user_id,reqiured"`
-	}
 	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
 	if err != nil {
 		return nil, err
 	}
-	var frm form
-	if err := r.ParseForm(); err != nil {
-		return nil, err
+	var frm struct {
+		ID     int       `schema:"id,reqiured"`
+		UserID uuid.UUID `schema:"user_id,reqiured"`
 	}
-	var decoder = schema.NewDecoder()
-	if err := decoder.Decode(&frm, r.Form); err != nil {
-		logger.Error.Printf("%s bad_form: %s", ctx, err)
+	if err := parseForm(r, &frm); err != nil {
 		return nil, httpx.NewError(http.StatusBadRequest, "bad params: "+err.Error())
 	}
+
 	var updated poker.TableItem
 	if err := ctx.table.Update(func(t *poker.Table) error {
 		if t.Players[ctx.user.ID] == nil {
@@ -584,6 +587,29 @@ func (s *server) updateTable(r *http.Request) (*httpx.Response, error) {
 	// push updates: potentially long operation - check
 	ctx.table.NotifyOthers(curUser, poker.NewPushItems(&updated))
 	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: &updated}), nil
+}
+
+func (s *server) kickPlayer(r *http.Request) (*httpx.Response, error) {
+	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
+	if err != nil {
+		return nil, err
+	}
+	var frm struct {
+		Username string `schema:"name,reqiured"`
+	}
+	if err := r.ParseForm(); err != nil {
+		return nil, err
+	}
+	var decoder = schema.NewDecoder()
+	if err := decoder.Decode(&frm, r.Form); err != nil {
+		return nil, err
+	}
+	if err := ctx.table.Update(func(t *poker.Table) error {
+		return t.KickPlayer(frm.Username)
+	}); err != nil {
+		return nil, err
+	}
+	return httpx.String(http.StatusOK, "successfully kicked"), nil
 }
 
 func (s *server) joinTable(r *http.Request) (*httpx.Response, error) {
@@ -860,6 +886,8 @@ func main() {
 		s.pushTableUpdates).Methods("GET")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/shuffle",
 		httpx.H(auth(s.shuffle))).Methods("GET")
+	r.HandleFunc("/games/{id:[a-z0-9-]+}/kick",
+		httpx.H(auth(s.kickPlayer))).Methods("POST")
 
 	r.HandleFunc("/users/new", httpx.H(s.newUser))
 	r.HandleFunc("/users/profile",

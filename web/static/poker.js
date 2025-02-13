@@ -592,6 +592,18 @@ function listenPushes() {
             return;
         }
         switch (resp.type) {
+        case 'player_kicked':
+            for (p of Object.values(resp.players)) {
+                if (p.user_id == STATE.current_uid) {
+                    showError('You have been kicked!')
+                    continue;
+                }
+                const slot = document.getElementById(`slot-${p.index}`);
+                slot.playerElem.remove();
+                slot.playerElem = null;
+                delete STATE.players[p.user_id]
+            }
+            break;
         case 'player_joined':
             updateTable(resp);
             break;

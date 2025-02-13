@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/nchern/vpoker/pkg/httpx"
 )
 
 // Table represents a poker table
@@ -27,11 +29,23 @@ type Table struct {
 	Items TableItemList `json:"items"`
 
 	lock sync.RWMutex
+
+	// idSeq is responsible for items id generation
+	idSeq sequence
+}
+
+type sequence int
+
+func (s *sequence) Next() int {
+	(*s)++
+	return int(*s)
+
 }
 
 // NewTable creates a new table instance
 func NewTable(id uuid.UUID, chipsN int) *Table {
 	r := &Table{
+		idSeq:   0,
 		ID:      id,
 		Players: map[uuid.UUID]*Player{},
 	}
@@ -58,10 +72,8 @@ func shuffle(items []*TableItem) {
 
 // StartGame rearranges all the objects on the table to the initial state
 func (t *Table) StartGame() *Table {
-	id := 0
 	for _, c := range t.Deck {
-		t.Items = append(t.Items, NewTableItem(id, 0, 0).AsCard(c))
-		id++
+		t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), 0, 0).AsCard(c))
 	}
 	t.Shuffle()
 	x := 10
@@ -71,11 +83,10 @@ func (t *Table) StartGame() *Table {
 			x = 10
 			y += 100
 		}
-		t.Items = append(t.Items, NewTableItem(id, x, y).AsChip(c))
+		t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), x, y).AsChip(c))
 		x++
-		id++
 	}
-	t.Items = append(t.Items, NewTableItem(id, 595, 315).AsDealer())
+	t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), 595, 315).AsDealer())
 	return t
 }
 
@@ -119,7 +130,7 @@ func (t *Table) generateChipsForPlayer(idx int) {
 			y = slot[1] + chipWidth
 		}
 		for i := 0; i < counts[ci.Color]; i++ {
-			item := NewTableItem(len(t.Items), x, y).AsChip(&ci)
+			item := NewTableItem(t.idSeq.Next(), x, y).AsChip(&ci)
 			t.Items = append(t.Items, item)
 			x += 2
 		}
@@ -136,7 +147,7 @@ func (t *Table) Join(u *User) []*TableItem {
 
 	t.Players[u.ID] = p
 	startIdx := len(t.Items)
-	t.Items = append(t.Items, NewTableItem(len(t.Items), 0, 0).AsPlayer(p))
+	t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), 0, 0).AsPlayer(p))
 
 	t.generateChipsForPlayer(index)
 	return t.Items[startIdx:]
@@ -188,4 +199,34 @@ func (t *Table) NotifyOthers(cur *User, p *Push) {
 	t.lock.RUnlock()
 
 	others.NotifyAll(p)
+}
+
+// KickPlayer kicks a player from this table by name
+func (t *Table) KickPlayer(name string) error {
+	// XXX: Currently O(n). Should not be a problem at least for a while as
+	// the number of items on the table should not exceed 1000 which is fine
+	// to process sequentially
+	var player *Player
+	for _, p := range t.Players {
+		if p.Name == name {
+			player = p
+			break
+		}
+	}
+	if player == nil {
+		return httpx.NewError(http.StatusBadRequest, "user is not at the table")
+	}
+	for i, it := range t.Items {
+		// TODO: optimize
+		if it.Class == PlayerClass && it.OwnerID == player.ID.String() {
+			t.Items = append(t.Items[0:i], t.Items[i+1:]...)
+			break
+		}
+	}
+	for _, p := range t.Players {
+		p.Dispatch(NewPushPlayerKicked(player))
+	}
+	delete(t.Players, player.ID)
+	player.Unsubscribe()
+	return nil
 }

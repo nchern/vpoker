@@ -106,14 +106,6 @@ type Chip struct {
 // PushType represents a push type
 type PushType string
 
-// Available pushes types
-const (
-	Refresh      PushType = "refresh"
-	PlayerJoined PushType = "player_joined"
-	UpdateItems  PushType = "update_items"
-	Disconnected PushType = "disconnected"
-)
-
 // Push represents a push event that happens in the game and
 // carries objects to push to a client
 type Push struct {
@@ -137,10 +129,14 @@ func (p *Push) DeepCopy() (*Push, error) {
 	return dest, nil
 }
 
+const UpdateItems PushType = "update_items"
+
 // NewPushItems returns a new push instance with given items
 func NewPushItems(items ...*TableItem) *Push {
 	return &Push{Type: UpdateItems, Items: items}
 }
+
+const PlayerJoined PushType = "player_joined"
 
 // NewPushPlayerJoined returns a new push to send when a new player joins
 func NewPushPlayerJoined(players map[uuid.UUID]*Player, items ...*TableItem) *Push {
@@ -152,10 +148,24 @@ func NewPushPlayerJoined(players map[uuid.UUID]*Player, items ...*TableItem) *Pu
 	}
 }
 
+const PlayerKicked PushType = "player_kicked"
+
+// NewPushPlayerKicked returns a new push to send when a player has been kicked
+func NewPushPlayerKicked(player *Player) *Push {
+	return &Push{
+		Type:    PlayerKicked,
+		Players: map[uuid.UUID]*Player{player.ID: player},
+	}
+}
+
+const Refresh PushType = "refresh"
+
 // NewPushRefresh returns a new push instance to force a client refresh
 func NewPushRefresh() *Push { return &Push{Type: Refresh} }
 
-// NewPushDisconnected returns a new push instance to force a client refresh
+const Disconnected = "disconnected"
+
+// NewPushDisconnected returns a new push instance to indicate disconnection of a player
 func NewPushDisconnected() *Push { return &Push{Type: Disconnected} }
 
 // PlayerList represents a list of players
