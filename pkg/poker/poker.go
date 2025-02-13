@@ -13,6 +13,8 @@ import (
 
 const (
 	chipWidth = 70
+
+	minItemZIndex = 10
 )
 
 var (
@@ -283,9 +285,10 @@ type TableItem struct {
 // NewTableItem creates a new table item
 func NewTableItem(id int, x int, y int) *TableItem {
 	return &TableItem{
-		ID: id,
-		X:  x,
-		Y:  y,
+		ID:     id,
+		X:      x,
+		Y:      y,
+		ZIndex: id + minItemZIndex, // HACK
 	}
 }
 

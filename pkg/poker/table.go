@@ -85,12 +85,13 @@ func (t *Table) Shuffle() *Table {
 	shuffle(cards)
 	x := 150
 	y := 20
-	for _, it := range cards {
+	for i, it := range cards {
 		it.X = x
 		it.Y = y
 		it.OwnerID = ""
 		it.PrevOwnerID = ""
 		it.Side = Cover
+		it.ZIndex = i + 10
 		x++
 	}
 	return t
