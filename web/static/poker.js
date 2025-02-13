@@ -234,6 +234,23 @@ function isOnOtherPlayerSlot(item) {
     return false;
 }
 
+function rearrangeZIndexOnDrop(event, item) {
+    // elementsFromPoint returns elements sorted by z-index descendig
+    const underList = document.elementsFromPoint(event.clientX, event.clientY).filter((el) => {
+        return el.id != item.id && (el.classList.contains('chip') || el.classList.contains('card'));
+    });
+    let prev = item;
+    // underList should be sorted by z-index descendig
+    for (let c of underList) {
+        if (c.info.z_index > prev.info.z_index) {
+            [prev.info.z_index, c.info.z_index] = [c.info.z_index, prev.info.z_index];
+            c.style.zIndex = `${c.info.z_index}`;
+            prev.style.zIndex = `${prev.info.z_index}`;
+        }
+        prev = c;
+    }
+}
+
 function onItemMouseDown(e, item) {
     if (e.button != BUTTON_LEFT) {
         return;
@@ -248,6 +265,7 @@ function onItemMouseDown(e, item) {
     let initialItemX = parseInt(item.style.left);
     let initialItemY = parseInt(item.style.top);
 
+    let initialZIndex = item.info.z_index;
     item.style.zIndex = '1000'; // push this item to top when being dragged
     item.info.z_index = 1000;
 
@@ -266,8 +284,8 @@ function onItemMouseDown(e, item) {
         const left = parseInt(initialItemX + deltaX);
         const top = parseInt(initialItemY + deltaY);
 
-        const tableRect = new Rect(STATE.theTable);
         const itemRect = new Rect(item);
+        const tableRect = new Rect(STATE.theTable);
 
         if ((left < 0 || left > tableRect.width() - itemRect.width()) ||
             (top < 0 || top > tableRect.height() - itemRect.height())
@@ -291,15 +309,19 @@ function onItemMouseDown(e, item) {
     }
     document.addEventListener('pointermove', onMouseMove);
 
-    document.addEventListener('pointerup', () => {
+    document.addEventListener('pointerup', (event) => {
         if (activePtrID != event.pointerId) {
             return;
         }
-        handleItemDrop(item);
-        item.style.zIndex = ''; // to default
-        item.info.z_index = 0;
+        item.info.z_index = initialZIndex;
+        item.style.zIndex = `${initialZIndex}`;
 
-        ajax().postJSON(`${window.location.pathname}/update`, item.info);
+        rearrangeZIndexOnDrop(event, item);
+
+        ajax().success((resp) => {
+            handleItemDrop(item);
+        }).postJSON(`${window.location.pathname}/update`, item.info);
+
         // cleanup for this drag-n-drop
         document.removeEventListener('pointermove', onMouseMove);
     }, { once: true });

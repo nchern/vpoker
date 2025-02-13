@@ -92,8 +92,6 @@ nav a:hover {
 
     user-select: none;
     touch-action: none;
-
-    z-index: 1;
 }
 
 .card_cover {
@@ -138,8 +136,6 @@ nav a:hover {
     height: 70px;
 
     user-select: none;
-
-    z-index: 2;
 
     touch-action: none;
 }
@@ -235,7 +231,6 @@ nav a:hover {
 
     align-items: center; /* Vertical centering */
     justify-content: center;
-
 }
 
 .dealer {
