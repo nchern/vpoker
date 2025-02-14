@@ -270,6 +270,7 @@ function onItemMouseDown(e, item) {
     let initialItemY = parseInt(item.style.top);
 
     let initialZIndex = parseInt(window.getComputedStyle(item).zIndex);
+
     item.style.zIndex = '1000'; // push this item to top when being dragged
     item.info.z_index = 1000;
 
@@ -474,6 +475,7 @@ function newPlayer(info, x, y) {
 
     item.render = () => {
         // HACK
+        item.style.zIndex = ''; // use from css
         item.style.left = '';   // use from css
         item.style.top = '';    // use from css
     };
@@ -512,7 +514,7 @@ function updateItem(src) {
     item.style.top = `${src.y}px`;
     item.style.left = `${src.x}px`;
     if (src.z_index != null && src.z_index != undefined &&
-        src.class != 'dealer' && src.class != 'player') {
+        src.class != 'dealer') {
         item.style.zIndex = src.z_index != 0 ? `${src.z_index}` : '';
     }
     item.render();
@@ -574,6 +576,34 @@ function showCard(card) {
     }).postJSON(`${window.location.pathname}/show_card`, {id: card.info.id});
 }
 
+function handlePush(resp) {
+    switch (resp.type) {
+    case 'player_kicked':
+        for (p of Object.values(resp.players)) {
+            if (p.user_id == STATE.current_uid) {
+                showError('You have been kicked!')
+                continue;
+            }
+            const slot = document.getElementById(`slot-${p.index}`);
+            slot.playerElem.remove();
+            slot.playerElem = null;
+            delete STATE.players[p.user_id]
+        }
+        break;
+    case 'player_joined':
+        updateTable(resp);
+        break;
+    case 'update_items':
+        updateItems(resp.items);
+        break;
+    case 'refresh':
+        location.reload();
+        break;
+    default:
+        console.log("push unknown:", resp);
+    }
+}
+
 function listenPushes() {
     const sock = new WebSocket(`ws://${window.location.host}${window.location.pathname}/listen`);
     sock.onopen = () => {
@@ -597,31 +627,7 @@ function listenPushes() {
             console.log("error: unknown payload", e, event.data);
             return;
         }
-        switch (resp.type) {
-        case 'player_kicked':
-            for (p of Object.values(resp.players)) {
-                if (p.user_id == STATE.current_uid) {
-                    showError('You have been kicked!')
-                    continue;
-                }
-                const slot = document.getElementById(`slot-${p.index}`);
-                slot.playerElem.remove();
-                slot.playerElem = null;
-                delete STATE.players[p.user_id]
-            }
-            break;
-        case 'player_joined':
-            updateTable(resp);
-            break;
-        case 'update_items':
-            updateItems(resp.items);
-            break;
-        case 'refresh':
-            location.reload();
-            break;
-        default:
-            console.log("push unknown:", resp);
-        }
+        handlePush(resp);
     };
     return sock;
 }

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -221,8 +220,7 @@ func parseForm(r *http.Request, frm any) error {
 	if err := r.ParseForm(); err != nil {
 		return err
 	}
-	var decoder = schema.NewDecoder()
-	return decoder.Decode(frm, r.Form)
+	return schema.NewDecoder().Decode(frm, r.Form)
 }
 
 type ItemUpdatedResponse struct {
@@ -547,15 +545,11 @@ func updateItem(ctx *Context, r *http.Request) (*poker.TableItem, error) {
 	if table.Players[curUser.ID] == nil {
 		return nil, httpx.NewError(http.StatusForbidden, "you are not at the table")
 	}
-	b, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-	logger.Debug.Printf("%s update: %s", ctx, string(b))
 	var src poker.TableItem
-	if err := json.Unmarshal(b, &src); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&src); err != nil {
 		return nil, err
 	}
+	logger.Debug.Printf("%s update: %+v", ctx, src)
 	dest := table.Items.Get(src.ID)
 	if dest == nil {
 		return nil, httpx.NewError(http.StatusNotFound, "item not found")
@@ -597,11 +591,7 @@ func (s *server) kickPlayer(r *http.Request) (*httpx.Response, error) {
 	var frm struct {
 		Username string `schema:"name,reqiured"`
 	}
-	if err := r.ParseForm(); err != nil {
-		return nil, err
-	}
-	var decoder = schema.NewDecoder()
-	if err := decoder.Decode(&frm, r.Form); err != nil {
+	if err := parseForm(r, &frm); err != nil {
 		return nil, err
 	}
 	if err := ctx.table.Update(func(t *poker.Table) error {
