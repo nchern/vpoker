@@ -225,12 +225,15 @@ func (p *Player) Dispatch(push *Push) *Player {
 // Subscribe subscribes this player to async updates
 func (p *Player) Subscribe(updates chan *Push) *Player {
 	if p.updates != nil {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error.Printf("Player.Subscribe name=%s panic: %s", p.Name, r)
-			}
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logger.Error.Printf("Player.Subscribe name=%s panic: %s", p.Name, r)
+				}
+			}()
+			// FIXME: if panic happens than p.updates is not set
+			close(p.updates)
 		}()
-		close(p.updates)
 	}
 	p.updates = updates
 	return p
