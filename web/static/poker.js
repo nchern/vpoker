@@ -106,6 +106,22 @@ class Rect {
         this.item = item;
     }
 
+    intersects(target) {
+        if (target.contains(this.left(), this.top())) {
+            return true;
+        }
+        if (target.contains(this.left()+this.width(), this.top())) {
+            return true;
+        }
+        if (target.contains(this.left(), this.top() + this.height())) {
+            return true;
+        }
+        if (target.contains(this.left() + this.width(), this.top() + this.height())) {
+            return true;
+        }
+        return false;
+    }
+
     left() { return parseInt(window.getComputedStyle(this.item).left); }
 
     top() { return parseInt(window.getComputedStyle(this.item).top); }
@@ -239,10 +255,20 @@ function rearrangeZIndexOnDrop(event, item) {
     if (item.info.class == 'dealer') {
         return; // dealer is always on top
     }
-    // elementsFromPoint returns elements sorted by z-index descendig
-    const underList = document.elementsFromPoint(event.clientX, event.clientY).filter((el) => {
-        return el.id != item.id && (el.classList.contains('chip') || el.classList.contains('card'));
-    });
+    var itemRect = new Rect(item);
+    // console.time('all_items');
+    items = document.querySelectorAll('.chip, .card');
+    const underList = [];
+    // XXX: O(n) elements on the tabble - to optimize
+    for (it of items) {
+         if (it.id != item.id && itemRect.intersects(new Rect(it))) {
+             underList.push(it);
+         }
+    }
+    // console.timeEnd('all_items');
+    // sort elements by z-index descendig
+    underList.sort((a, b) => parseInt(b.style.zIndex) - parseInt(a.style.zIndex));
+
     // underList should be sorted by z-index descendig
     for (let c of underList) {
         if (c.info.z_index >= item.info.z_index) {
