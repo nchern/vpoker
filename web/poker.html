@@ -62,10 +62,10 @@
 </head>
 <body>
     <nav>
+        <a href="#" id="rules-btn">Rules</a>
         <a href="/" onclick="return confirm('Are you sure you want to leave?');">Home</a>
         <a href="/games/new" onclick="return confirm('Are you sure you want to leave?');">New game</a>
         <a href="/games/{{ .TableID }}/shuffle" onclick="return confirm('Are you sure?');">Shuffle cards</a>
-        <a href="#" id="rules-btn">Rules</a>
         <a href="/users/profile?ret_path=/games/{{ .TableID }}">Profile: {{ .Username }}</a>
     </nav>
     <div id="error-banner"></div>
