@@ -482,7 +482,7 @@ function newChip(info, x, y) {
 
 function newDealer(info, x, y) {
     const item = newItem('dealer', info, x, y);
-    item.innerText = 'Dealer';
+    item.innerText = 'Dilda';
     return item;
 }
 
