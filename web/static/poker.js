@@ -150,6 +150,7 @@ function handleChipDrop(chip, slots) {
     accountChip(chip, slots);
     slots.forEach(updateSlotsWithMoney);
 
+    // "stack" the chip to other chips under and nearby
     const thisRect = new Rect(chip);
     for (let ch of STATE.chipIndex.get(chip.info.val)) {
         const rect = new Rect(ch);
@@ -425,6 +426,7 @@ function accountChip(chip, slots) {
     if (!chip) {
         return;
     }
+    chip.classList.remove('forbidden');
     const rect = new Rect(chip);
     for (let slot of slots) {
         if (!slot.chips) {
@@ -436,6 +438,9 @@ function accountChip(chip, slots) {
         }
         if (rect.centerWithin(slotRect)) {
             slot.chips[chip.id] = chip;
+            if (slot.playerElem && !isOwnedBy(slot.playerElem.info, STATE.current_uid)) {
+                chip.classList.add('forbidden');
+            }
             // console.log(`${chip.info.class} id=${chip.id} within player ${slot.dataset.index} slot`);
         } else {
             // console.log(`${chip.info.class} id=${chip.id} outside of any player slot`);
@@ -485,6 +490,7 @@ function updateSlotsWithMoney(slot) {
     if (slot.playerElem) {
         const player = STATE.players[slot.playerElem.info.owner_id];
         slot.playerElem.innerText = `${player.Name}: ${total}$`;
+        slot.innerText = '';
     } else {
         slot.innerText = `${total}$`;
     }
