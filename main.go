@@ -375,11 +375,7 @@ func (s *server) pushTableUpdates(w http.ResponseWriter, r *http.Request) {
 	}))(w, r)
 }
 
-func (s *server) shuffle(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
-	if err != nil {
-		return nil, err
-	}
+func (s *server) shuffle(ctx *Context, r *http.Request) (*httpx.Response, error) {
 	if err := ctx.table.Update(func(t *poker.Table) error {
 		if t.Players[ctx.user.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not at the table")
@@ -395,11 +391,7 @@ func (s *server) shuffle(r *http.Request) (*httpx.Response, error) {
 	return httpx.Redirect(fmt.Sprintf("/games/%s", ctx.table.ID)), nil
 }
 
-func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
-	if err != nil {
-		return nil, err
-	}
+func (s *server) showCard(ctx *Context, r *http.Request) (*httpx.Response, error) {
 	req := map[string]int{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
@@ -430,11 +422,7 @@ func (s *server) showCard(r *http.Request) (*httpx.Response, error) {
 	return httpx.JSON(http.StatusOK, &ItemUpdatedResponse{Updated: &updated}), nil
 }
 
-func (s *server) giveCard(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
-	if err != nil {
-		return nil, err
-	}
+func (s *server) giveCard(ctx *Context, r *http.Request) (*httpx.Response, error) {
 	var frm struct {
 		ID     int       `schema:"id,reqiured"`
 		UserID uuid.UUID `schema:"user_id,reqiured"`
@@ -466,11 +454,7 @@ func (s *server) giveCard(r *http.Request) (*httpx.Response, error) {
 	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: &updated}), nil
 }
 
-func (s *server) takeCard(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
-	if err != nil {
-		return nil, err
-	}
+func (s *server) takeCard(ctx *Context, r *http.Request) (*httpx.Response, error) {
 	req := map[string]int{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
@@ -560,11 +544,7 @@ func updateItem(ctx *Context, r *http.Request) (*poker.TableItem, error) {
 	return dest, nil
 }
 
-func (s *server) updateTable(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
-	if err != nil {
-		return nil, err
-	}
+func (s *server) updateTable(ctx *Context, r *http.Request) (*httpx.Response, error) {
 	curUser, table := ctx.user, ctx.table
 	var updated poker.TableItem
 	if err := table.Update(func(t *poker.Table) error {
@@ -583,11 +563,7 @@ func (s *server) updateTable(r *http.Request) (*httpx.Response, error) {
 	return httpx.JSON(http.StatusOK, ItemUpdatedResponse{Updated: &updated}), nil
 }
 
-func (s *server) kickPlayer(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
-	if err != nil {
-		return nil, err
-	}
+func (s *server) kickPlayer(ctx *Context, r *http.Request) (*httpx.Response, error) {
 	var frm struct {
 		Username string `schema:"name,reqiured"`
 	}
@@ -602,11 +578,7 @@ func (s *server) kickPlayer(r *http.Request) (*httpx.Response, error) {
 	return httpx.String(http.StatusOK, "successfully kicked"), nil
 }
 
-func (s *server) joinTable(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
-	if err != nil {
-		return nil, err
-	}
+func (s *server) joinTable(ctx *Context, r *http.Request) (*httpx.Response, error) {
 	var players map[uuid.UUID]*poker.Player
 	var updated []*poker.TableItem
 	if err := ctx.table.Update(func(t *poker.Table) error {
@@ -629,11 +601,7 @@ func (s *server) joinTable(r *http.Request) (*httpx.Response, error) {
 	return httpx.Redirect(fmt.Sprintf("/games/%s", ctx.table.ID)), nil
 }
 
-func (s *server) renderTable(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
-	if err != nil {
-		return nil, err
-	}
+func (s *server) renderTable(ctx *Context, r *http.Request) (*httpx.Response, error) {
 	curUser, table := ctx.user, ctx.table
 	players := []*poker.Player{}
 	errRedirect := errors.New("redirect")
@@ -678,11 +646,7 @@ func getTableState(curUser *poker.User, table *poker.Table) (*poker.Table, error
 	return tableCopy, nil
 }
 
-func (s *server) tableState(r *http.Request) (*httpx.Response, error) {
-	ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
-	if err != nil {
-		return nil, err
-	}
+func (s *server) tableState(ctx *Context, r *http.Request) (*httpx.Response, error) {
 	tableCopy, err := getTableState(ctx.user, ctx.table)
 	if err != nil {
 		return nil, err
@@ -836,6 +800,15 @@ func main() {
 	auth := func(f httpx.RequestHandler) httpx.RequestHandler {
 		return authenticated(s.users, f)
 	}
+	tableHandler := func(fn func(*Context, *http.Request) (*httpx.Response, error)) httpx.RequestHandler {
+		return func(r *http.Request) (*httpx.Response, error) {
+			ctx, err := newContextBuilder(r.Context()).withUser(s, r).withTable(s, r, "id").build()
+			if err != nil {
+				return nil, err
+			}
+			return fn(ctx, r)
+		}
+	}
 	redirectIfNoAuth := func(url string, f httpx.RequestHandler) httpx.RequestHandler {
 		return func(r *http.Request) (*httpx.Response, error) {
 			resp, err := auth(f)(r)
@@ -858,26 +831,27 @@ func main() {
 	})).Methods("GET")
 
 	r.HandleFunc("/games/new", httpx.H(redirectIfNoAuth("/users/new", s.newTable)))
+
 	r.HandleFunc("/games/{id:[a-z0-9-]+}",
-		httpx.H(redirectIfNoAuth("/users/new", s.renderTable))).Methods("GET")
+		httpx.H(redirectIfNoAuth("/users/new", tableHandler(s.renderTable)))).Methods("GET")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/state",
-		httpx.H(auth(s.tableState))).Methods("GET")
+		httpx.H(auth(tableHandler(s.tableState)))).Methods("GET")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/join",
-		httpx.H(auth(s.joinTable))).Methods("GET")
+		httpx.H(auth(tableHandler(s.joinTable)))).Methods("GET")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/update",
-		httpx.H(auth(s.updateTable))).Methods("POST")
+		httpx.H(auth(tableHandler(s.updateTable)))).Methods("POST")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/show_card",
-		httpx.H(auth(s.showCard))).Methods("POST")
+		httpx.H(auth(tableHandler(s.showCard)))).Methods("POST")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/take_card",
-		httpx.H(auth(s.takeCard))).Methods("POST")
+		httpx.H(auth(tableHandler(s.takeCard)))).Methods("POST")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/give_card",
-		httpx.H(auth(s.giveCard))).Methods("POST")
+		httpx.H(auth(tableHandler(s.giveCard)))).Methods("POST")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/listen",
 		s.pushTableUpdates).Methods("GET")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/shuffle",
-		httpx.H(auth(s.shuffle))).Methods("GET")
+		httpx.H(auth(tableHandler(s.shuffle)))).Methods("GET")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/kick",
-		httpx.H(auth(s.kickPlayer))).Methods("POST")
+		httpx.H(auth(tableHandler(s.kickPlayer)))).Methods("POST")
 
 	r.HandleFunc("/users/new", httpx.H(s.newUser))
 	r.HandleFunc("/users/profile",
