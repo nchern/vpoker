@@ -257,7 +257,7 @@ nav a:hover {
     height: 90px;
 
     user-select: none;
-    z-index: 500;
+    z-index: 1000000;
     touch-action: none;
 }
 
@@ -288,7 +288,7 @@ nav a:hover {
     width: 140px;
     height: 90px;
 
-    z-index: 10000;
+    z-index: 1000000;
     pointer-events: none
 }
 

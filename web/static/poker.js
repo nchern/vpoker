@@ -243,15 +243,12 @@ function rearrangeZIndexOnDrop(event, item) {
     const underList = document.elementsFromPoint(event.clientX, event.clientY).filter((el) => {
         return el.id != item.id && (el.classList.contains('chip') || el.classList.contains('card'));
     });
-    let prev = item;
     // underList should be sorted by z-index descendig
     for (let c of underList) {
-        if (c.info.z_index > prev.info.z_index) {
-            [prev.info.z_index, c.info.z_index] = [c.info.z_index, prev.info.z_index];
-            c.style.zIndex = `${c.info.z_index}`;
-            prev.style.zIndex = `${prev.info.z_index}`;
+        if (c.info.z_index >= item.info.z_index) {
+            item.info.z_index = c.info.z_index + 1;
+            item.style.zIndex = `${item.info.z_index}`;
         }
-        prev = c;
     }
 }
 

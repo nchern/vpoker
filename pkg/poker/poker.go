@@ -298,7 +298,7 @@ func NewTableItem(id int, x int, y int) *TableItem {
 		ID:     id,
 		X:      x,
 		Y:      y,
-		ZIndex: id + minItemZIndex, // HACK
+		ZIndex: 1,
 	}
 }
 
@@ -312,6 +312,7 @@ func (ti *TableItem) AsCard(c *Card) *TableItem {
 // AsChip makes this item as chip
 func (ti *TableItem) AsChip(c *Chip) *TableItem {
 	ti.Chip = *c
+	ti.ZIndex = 2
 	ti.Class = ChipClass
 	return ti
 }

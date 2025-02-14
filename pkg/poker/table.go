@@ -83,7 +83,8 @@ func (t *Table) StartGame() *Table {
 			x = 10
 			y += 100
 		}
-		t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), x, y).AsChip(c))
+		t.Items = append(t.Items,
+			NewTableItem(t.idSeq.Next(), x, y).AsChip(c))
 		x++
 	}
 	t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), 595, 315).AsDealer())
@@ -96,13 +97,13 @@ func (t *Table) Shuffle() *Table {
 	shuffle(cards)
 	x := 150
 	y := 20
-	for i, it := range cards {
+	for _, it := range cards {
 		it.X = x
 		it.Y = y
 		it.OwnerID = ""
 		it.PrevOwnerID = ""
 		it.Side = Cover
-		it.ZIndex = i + 10
+		// it.ZIndex = 1 // i + minItemZIndex
 		x++
 	}
 	return t

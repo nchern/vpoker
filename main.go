@@ -815,7 +815,6 @@ func main() {
 			if err != nil {
 				return nil, err
 			}
-			// logger.Debug.Println(resp.Code())
 			if resp.Code() == http.StatusUnauthorized {
 				return httpx.Redirect(fmt.Sprintf("%s?ret_path=%s", url, r.URL.Path)), nil
 			}
