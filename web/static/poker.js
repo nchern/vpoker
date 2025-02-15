@@ -37,6 +37,8 @@ const STATE = {
     'requestStats': new Stats(),
 
     'lastTapTime': 0,
+
+    'tab_disconnected': false,
 }
 
 function getSession() {
@@ -601,6 +603,9 @@ function showCard(card) {
 
 function handlePush(resp) {
     switch (resp.type) {
+    case 'disconnected':
+        STATE.tab_disconnected = true;
+        break;
     case 'player_kicked':
         for (p of Object.values(resp.players)) {
             if (p.user_id == STATE.current_uid) {
@@ -632,22 +637,27 @@ function listenPushes() {
     sock.onopen = () => {
         console.log('websocket connected');
         hideElem(document.getElementById('error-banner'));
+        STATE.tab_disconnected = false;
     };
     sock.onclose = () => {
         console.log('websocket disconnected');
-        showError('OFFLINE. Try to refresh');
+        if (STATE.tab_disconnected) {
+            showError('OFFLINE. You connected from another browser or browser tab');
+            return;
+        }
+        showError('OFFLINE. Connection dropped. Try to refresh');
         setTimeout(() => { socket = listenPushes(); }, 10 * SECOND);
     };
     sock.onerror = (err) => {
         console.error('websocket error:', err);
     };
-    sock.onmessage = (event) => {
+    sock.onmessage = (e) => {
         let resp = null;
         try {
-            resp = JSON.parse(event.data)
-        } catch (e) {
+            resp = JSON.parse(e.data)
+        } catch (ex) {
             // non-JSON payload?
-            console.log("error: unknown payload", e, event.data);
+            console.log("error: unknown payload", ex, e.data);
             return;
         }
         handlePush(resp);
