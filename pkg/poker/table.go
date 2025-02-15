@@ -100,10 +100,10 @@ func (t *Table) Shuffle() *Table {
 	for _, it := range cards {
 		it.X = x
 		it.Y = y
+		it.ZIndex = 1
 		it.OwnerID = ""
-		it.PrevOwnerID = ""
 		it.Side = Cover
-		// it.ZIndex = 1 // i + minItemZIndex
+		it.PrevOwnerID = ""
 		x++
 	}
 	return t
