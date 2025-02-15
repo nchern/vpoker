@@ -106,20 +106,13 @@ class Rect {
         this.item = item;
     }
 
-    intersects(target) {
-        if (target.contains(this.left(), this.top())) {
-            return true;
-        }
-        if (target.contains(this.left()+this.width(), this.top())) {
-            return true;
-        }
-        if (target.contains(this.left(), this.top() + this.height())) {
-            return true;
-        }
-        if (target.contains(this.left() + this.width(), this.top() + this.height())) {
-            return true;
-        }
-        return false;
+    intersects(other) {
+        return !(
+            this.left + this.width <= other.left ||     // this is left of other
+            other.left + other.width <= this.left ||    // other is left of this
+            this.top + this.height <= other.top ||      // this is above other
+            other.top + other.height <= this.top        // other is above this
+        );
     }
 
     left() { return parseInt(window.getComputedStyle(this.item).left); }
