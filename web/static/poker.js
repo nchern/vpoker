@@ -285,14 +285,14 @@ function onItemMouseDown(e, item) {
     let initialItemX = parseInt(item.style.left);
     let initialItemY = parseInt(item.style.top);
 
-    let initialZIndex = parseInt(window.getComputedStyle(item).zIndex);
-
-    item.style.zIndex = '11000'; // push this item to top when being dragged
-    item.info.z_index = 11000;
+    let last_ms = new Date().getTime();
 
     const activePtrID = event.pointerId || 0;
 
-    let last_ms = new Date().getTime();
+    const initialZIndex = parseInt(window.getComputedStyle(item).zIndex);
+
+    item.style.zIndex = '11000'; // push this item to top when being dragged
+    item.info.z_index = 11000;
 
     function onMouseMove(event) {
         if (activePtrID != event.pointerId) {
@@ -334,17 +334,24 @@ function onItemMouseDown(e, item) {
         if (activePtrID != event.pointerId) {
             return;
         }
+        // cleanup for this drag-n-drop
+        document.removeEventListener('pointermove', onMouseMove);
+
+        const deltaX = event.clientX - initialMouseX;
+        const deltaY = event.clientY - initialMouseY;
+
+        // restore z-index
         item.info.z_index = initialZIndex;
         item.style.zIndex = `${initialZIndex}`;
 
+        if (deltaX == 0 && deltaY == 0) {
+            return; // no real move happened, no need to post updates
+        }
+
         rearrangeZIndexOnDrop(event, item);
 
-        ajax().success((resp) => {
-            handleItemDrop(item);
-        }).postJSON(`${window.location.pathname}/update`, item.info);
-
-        // cleanup for this drag-n-drop
-        document.removeEventListener('pointermove', onMouseMove);
+        ajax().success((resp) => { handleItemDrop(item); }).
+            postJSON(`${window.location.pathname}/update`, item.info);
     }, { once: true });
 }
 
@@ -396,7 +403,6 @@ function renderCard(card) {
 }
 
 function onCardDblClick(e, card) {
-    // console.log('DEBUG onCardDblClick', e.button);
     if (e.button != BUTTON_LEFT) {
         return;
     }
@@ -409,21 +415,22 @@ function onCardDblClick(e, card) {
     }).postJSON(`${window.location.pathname}/update`, card.info)
 }
 
+function onCardClick(e, card) {
+    if (e.button != BUTTON_LEFT) {
+        return;
+    }
+    if (e.ctrlKey || e.metaKey) {
+        takeCard(card);
+    }
+    if (e.shiftKey) {
+        showCard(card);
+    }
+}
+
 function newCard(info, x, y) {
     const card = newItem('card', info, x, y);
-    card.addEventListener('click', (e) => {
-        if (e.button != BUTTON_LEFT) {
-            return;
-        }
-        if (e.ctrlKey || e.metaKey) {
-            takeCard(card);
-        }
-        if (e.shiftKey) {
-            showCard(card);
-        }
-    });
+    card.addEventListener('click', (e) => { onCardClick(e, card) });
     card.addEventListener('dblclick', (e) => { onCardDblClick(e, card) });
-
     card.addEventListener('touchend', (e) => {
         const currentTime = new Date().getTime();
         const tapInterval = currentTime - STATE.lastTapTime;
