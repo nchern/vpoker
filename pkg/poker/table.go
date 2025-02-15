@@ -11,6 +11,8 @@ import (
 	"github.com/nchern/vpoker/pkg/httpx"
 )
 
+const maxPlayers = 3
+
 // Table represents a poker table
 type Table struct {
 	// ID of this table
@@ -140,8 +142,27 @@ func (t *Table) generateChipsForPlayer(idx int) {
 }
 
 // Join joins a user
-func (t *Table) Join(u *User) []*TableItem {
-	index := len(t.Players) % len(playerColors)
+func (t *Table) Join(u *User) ([]*TableItem, error) {
+	if len(t.Players) >= maxPlayers {
+		return nil, httpx.NewError(http.StatusForbidden, "this table is full")
+	}
+	index := -1
+	var slots [maxPlayers]byte
+	// player's index is always between 0 and maxPlayers excluding
+	// O(maxPlayers) which is really small O as the order of magnitude of maxPlayers is not more than 10
+	for _, p := range t.Players {
+		slots[p.Index] = 1
+	}
+	for i := 0; i < len(slots); i++ {
+		if slots[i] == 0 {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		// this is a safeguard, should never happen
+		return nil, httpx.NewError(http.StatusForbidden, "this table is full")
+	}
 	p := newPlayer(u, playerColors[index])
 	p.Index = index
 	p.Skin = fmt.Sprintf("player_%d", index)
@@ -151,7 +172,7 @@ func (t *Table) Join(u *User) []*TableItem {
 	t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), 0, 0).AsPlayer(p))
 
 	t.generateChipsForPlayer(index)
-	return t.Items[startIdx:]
+	return t.Items[startIdx:], nil
 }
 
 // OtherPlayers returns all players but a given
