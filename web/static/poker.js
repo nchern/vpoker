@@ -287,8 +287,8 @@ function onItemMouseDown(e, item) {
 
     let initialZIndex = parseInt(window.getComputedStyle(item).zIndex);
 
-    item.style.zIndex = '1000'; // push this item to top when being dragged
-    item.info.z_index = 1000;
+    item.style.zIndex = '11000'; // push this item to top when being dragged
+    item.info.z_index = 11000;
 
     const activePtrID = event.pointerId || 0;
 

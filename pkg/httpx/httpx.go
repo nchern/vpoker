@@ -196,7 +196,7 @@ func H(fn RequestHandler) func(http.ResponseWriter, *http.Request) {
 		if clientIP == "" {
 			clientIP = r.RemoteAddr
 		}
-		logger.Info.Printf("%s %s request_id=%s client_ip=%s start", r.Method, r.URL, requestID, clientIP)
+		logger.Info.Printf("%s %s request_id=%s client_ip=%s begin", r.Method, r.URL, requestID, clientIP)
 		logger.Info.Printf("request_id=%s client_ip=%s browser: %s", requestID, clientIP, r.UserAgent())
 		if strings.Contains(r.UserAgent(), "Bot") {
 			writeResponse(r,
