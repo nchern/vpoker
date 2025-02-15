@@ -10,6 +10,7 @@
 
     <script src="/static/lib.js"></script>
     <script src="/static/poker.js"></script>
+    <script src="/static/mobile.js"></script>
     <title>Poker table: {{ .Username }}</title>
 
     <style>
@@ -110,6 +111,8 @@
                 hideElem(document.getElementById("rules-modal"));
                 hideElem(document.getElementById("overlay"));
             });
+
+            initWakeLock();
         })();
     </script>
 </body>
