@@ -587,10 +587,10 @@ func (s *server) joinTable(ctx *Context, r *http.Request) (*httpx.Response, erro
 			return nil
 		}
 		logger.Debug.Printf("players_joind=%d", len(t.Players))
-		if len(t.Players) >= maxPlayers {
-			return httpx.NewError(http.StatusForbidden, "this table is full")
+		var err error
+		if updated, err = t.Join(ctx.user); err != nil {
+			return err
 		}
-		updated = t.Join(ctx.user)
 		players = t.Players
 		return nil
 	}); err != nil {
