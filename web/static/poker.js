@@ -633,7 +633,9 @@ function handlePush(resp) {
 }
 
 function listenPushes() {
-    const sock = new WebSocket(`ws://${window.location.host}${window.location.pathname}/listen`);
+    const proto = window.isSecureContext ? 'wss': 'ws';
+    const sock = new WebSocket(`${proto}://${window.location.host}${window.location.pathname}/listen`);
+
     sock.onopen = () => {
         console.log('websocket connected');
         hideElem(document.getElementById('error-banner'));
