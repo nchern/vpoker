@@ -348,6 +348,7 @@ nav a:hover {
     text-align: center;
 
     padding: 10px;
-    z-index: 10000;
     width: 100%;
+
+    z-index: 2000000;  /* topmost object in the game */
 }
