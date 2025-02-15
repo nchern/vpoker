@@ -17,6 +17,9 @@ async function requestWakeLock() {
 }
 
 function initWakeLock() {
+    if (!window.isSecureContext) {
+        return; // wake lock works only on https
+    }
     // Request wake lock when the page loads
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
