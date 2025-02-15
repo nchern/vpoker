@@ -29,7 +29,7 @@
         max-width: 500px;
         max-width: 500px;
 
-        z-index: 10000;
+        z-index: 2000000;  /* topmost object in the game */
     }
 
     .modal img {
@@ -91,7 +91,7 @@
     <script>
         (function() {
             document.addEventListener('DOMContentLoaded', start, false);
-
+            // modal rules dialog handling
             document.getElementById("rules-btn").addEventListener("click", function() {
                 showElem(document.getElementById("rules-modal"));
                 showElem(document.getElementById("overlay"));
@@ -99,6 +99,12 @@
             document.getElementById("close-modal").addEventListener("click", function() {
                 hideElem(document.getElementById("rules-modal"));
                 hideElem(document.getElementById("overlay"));
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === "Escape") {
+                    hideElem(document.getElementById("rules-modal"));
+                    hideElem(document.getElementById("overlay"));
+                }
             });
             document.getElementById("overlay").addEventListener("click", function() {
                 hideElem(document.getElementById("rules-modal"));
