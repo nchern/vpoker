@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nchern/vpoker/pkg/httpx"
+	"github.com/nchern/vpoker/pkg/logger"
 )
 
 const maxPlayers = 3
@@ -169,6 +170,7 @@ func (t *Table) Join(u *User) ([]*TableItem, error) {
 
 	t.Players[u.ID] = p
 	startIdx := len(t.Items)
+	logger.Debug.Printf("Join: user_name=%s start_id=%d", u.Name, int(t.idSeq))
 	t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), 0, 0).AsPlayer(p))
 
 	t.generateChipsForPlayer(index)
