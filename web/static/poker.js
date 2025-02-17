@@ -11,6 +11,8 @@ const MOVE_UPDATE_THROTTLE_MS = 30;
 class ByValueIndex {
     constructor() {
         this.lookup = {};
+
+        this.byId = {};
     }
 
     add(chip) {
@@ -18,6 +20,8 @@ class ByValueIndex {
             this.lookup[chip.info.val] = new Array();
         }
         this.lookup[chip.info.val].push(chip);
+
+        this.byId[chip.info.id] = chip;
     }
 
     get(val) {
@@ -65,21 +69,31 @@ function handleChipDrop(chip, slots) {
     // regard to z-index.
     accountChip(chip, slots);
     slots.forEach(updateSlotsWithMoney);
+}
 
+function stackChips(grabbedList, e) {
     // "stack" the chip to other chips under and nearby
-    const thisRect = new Rect(chip);
-    for (let ch of STATE.chipIndex.get(chip.info.val)) {
-        const rect = new Rect(ch);
-        if (ch.id != chip.id && thisRect.centerWithin(rect)) {
-            const left = rect.left() + 2;
-            const top = rect.top();
+    const grabbedIDs = new Set(grabbedList.map((it) => it.id));
+    for (let grabbed of grabbedList) {
+        const nearBy = document.elementsFromPoint(e.clientX, e.clientY).filter((it) => {
+            return it.info && it.info.class == 'chip' &&
+                !grabbedIDs.has(it.id) &&
+                grabbed.info.val == it.info.val;
+        });
+        // for (let ch of STATE.chipIndex.get(it.info.val)) {
+        for (let ch of nearBy) {
+            const rect = new Rect(ch);
+            if ((new Rect(grabbed)).centerWithin(rect)) {
+                const left = rect.left() + 3;
+                const top = rect.top();
 
-            chip.style.left = `${left}px`;
-            chip.style.top = `${top}px`;
+                grabbed.style.left = `${left}px`;
+                grabbed.style.top = `${top}px`;
 
-            chip.info.x = left;
-            chip.info.y = top;
-            return;
+                grabbed.info.x = left;
+                grabbed.info.y = top;
+                return;
+            }
         }
     }
 }
@@ -151,33 +165,55 @@ function isOnOtherPlayerSlot(item) {
     return false;
 }
 
-function rearrangeZIndexOnDrop(event, item) {
-    if (item.info.class == 'dealer') {
+function rearrangeZIndexOnDrop(grabbed) {
+    if (grabbed.length === 0) {
+        return;
+    }
+    if (grabbed[0].info.class == 'dealer') {
         return; // dealer is always on top
     }
-    var itemRect = new Rect(item);
+    var itemRect = new Rect(grabbed[0]);
     // console.time('all_items');
-    items = document.querySelectorAll('.chip, .card');
+    const grabbedIDs = new Set(grabbed.map((it) => it.id));
+    const items = document.querySelectorAll('.chip, .card');
     const underList = [];
-    // XXX: O(n) elements on the tabble - to optimize
+    // XXX: O(n) elements on the table - to optimize
     for (it of items) {
-         if (it.id != item.id && itemRect.intersects(new Rect(it))) {
+         if (!grabbedIDs.has(it.id) &&
+             itemRect.intersects(new Rect(it))
+         ) {
              underList.push(it);
          }
     }
-    // console.timeEnd('all_items');
+    if (underList.length === 0) {
+        return; // nothing is under
+    }
     // sort elements by z-index descendig
     underList.sort((a, b) => parseInt(b.style.zIndex) - parseInt(a.style.zIndex));
-
     // underList should be sorted by z-index descendig
-    for (let c of underList) {
-        if (c.info.z_index >= item.info.z_index) {
-            item.info.z_index = c.info.z_index + 1;
-            item.style.zIndex = `${item.info.z_index}`;
-        }
+    let topmost = underList[0].info.z_index + 1;
+    for (let it of grabbed.slice().reverse()) {
+        it.info.z_index = topmost;
+        it.style.zIndex = `${it.info.z_index}`;
+        topmost++;
     }
 }
 
+function isOffTheTable(item, x, y) {
+    const itemRect = new Rect(item);
+    const tableRect = STATE.theTable.getBoundingClientRect();
+
+    const tableX = parseInt(x - tableRect.left);
+    const tableY = parseInt(y - tableRect.top);
+    // console.log('move coords', tableX, tableY, tableRect.left);
+    return (tableX < 0 || tableX > tableRect.width - itemRect.width() / 2) ||
+        (tableY < 0 || tableY > tableRect.height - itemRect.height() / 2)
+}
+
+// item state diagram:
+// resting -> pick_up -> move -> ... -> click -> put_back
+//            |---> click -> put_back
+//            |---> click -> put_back -> pick_up -> dbl_click -> put_back
 function onItemMouseDown(e, item) {
     if (e.button != BUTTON_LEFT) {
         return;
@@ -185,47 +221,55 @@ function onItemMouseDown(e, item) {
     if (item.info.class == 'chip' && isOnOtherPlayerSlot(item)) {
         return;
     }
+    console.log('mouse down', item.info.id);
 
     let initialMouseX = e.clientX;
     let initialMouseY = e.clientY;
-
-    let initialItemX = parseInt(item.style.left);
-    let initialItemY = parseInt(item.style.top);
 
     let last_ms = new Date().getTime();
 
     const activePtrID = event.pointerId || 0;
 
-    const initialZIndex = parseInt(window.getComputedStyle(item).zIndex);
-
-    item.style.zIndex = '11000'; // push this item to top when being dragged
-    item.info.z_index = 11000;
+    let grabbed = [item];
+    if (e.shiftKey && item.info.class == 'chip') {
+        grabbed = grabbed.concat(document.elementsFromPoint(e.clientX, e.clientY).filter(
+            (it) => it.id != item.id && it.matches('.chip') && it.info.val == item.info.val
+        ));
+    }
+    for (it of grabbed) {
+        it.initialX = parseInt(it.style.left);
+        it.initialY = parseInt(it.style.top);
+        it.initialZIndex = parseInt(window.getComputedStyle(it).zIndex);
+    }
+    // push items to top when they are being dragged
+    const dragZIndex = 11000;
+    grabbed.forEach((it) => { setItemZIndex(it, dragZIndex + it.initialZIndex); });
 
     function onMouseMove(event) {
         if (activePtrID != event.pointerId) {
             return;
         }
+        if (grabbed.length < 1) {
+            return;
+        }
+        console.log('mouse move', item.info.id);
 
-        const deltaX = event.clientX - initialMouseX;
-        const deltaY = event.clientY - initialMouseY;
-
-        const left = parseInt(initialItemX + deltaX);
-        const top = parseInt(initialItemY + deltaY);
-
-        const itemRect = new Rect(item);
-        const tableRect = new Rect(STATE.theTable);
-
-        if ((left < 0 || left > tableRect.width() - itemRect.width()) ||
-            (top < 0 || top > tableRect.height() - itemRect.height())
-        ) {
+        // console.log('move coords', tableX, tableY, tableRect.left);
+        if (isOffTheTable(item, event.clientX, event.clientY)) {
             return; // disallow to move items outside the table
         }
 
-        item.style.left = `${left}px`;
-        item.style.top = `${top}px`;
+        const deltaX = event.clientX - initialMouseX;
+        const deltaY = event.clientY - initialMouseY;
+        for (it of grabbed) {
+            const left = parseInt(it.initialX + deltaX);
+            const top = parseInt(it.initialY + deltaY);
 
-        item.info.x = left;
-        item.info.y = top;
+            it.info.x = left;
+            it.info.y = top;
+            it.style.left = `${left}px`;
+            it.style.top = `${top}px`;
+        }
 
         const now_ms = new Date().getTime();
         if (now_ms - last_ms < MOVE_UPDATE_THROTTLE_MS) {
@@ -233,33 +277,48 @@ function onItemMouseDown(e, item) {
         }
         last_ms = now_ms;
 
-        ajax().postJSON(`${window.location.pathname}/update`, item.info);
+        ajax().postJSON(`${window.location.pathname}/update_many`,
+            { items: grabbed.map((it) => it.info) });
     }
     document.addEventListener('pointermove', onMouseMove);
-
-    document.addEventListener('pointerup', (event) => {
-        if (activePtrID != event.pointerId) {
+    document.addEventListener('pointerup', (e) => {
+        if (activePtrID != e.pointerId) {
             return;
         }
+        console.log('mouse up', item.info.id);
         // cleanup for this drag-n-drop
         document.removeEventListener('pointermove', onMouseMove);
-
-        const deltaX = event.clientX - initialMouseX;
-        const deltaY = event.clientY - initialMouseY;
-
         // restore z-index
-        item.info.z_index = initialZIndex;
-        item.style.zIndex = `${initialZIndex}`;
+        grabbed.forEach((it) => { setItemZIndex(it, it.initialZIndex); });
 
+        const deltaX = e.clientX - initialMouseX;
+        const deltaY = e.clientY - initialMouseY;
         if (deltaX == 0 && deltaY == 0) {
+            // all chips are put on the table
+            grabbed = [];
             return; // no real move happened, no need to post updates
         }
+        // console.time('rearrangeZIndexOnDrop');
+        rearrangeZIndexOnDrop(grabbed);
+        // console.timeEnd('rearrangeZIndexOnDrop');
+        if (item.info.class == 'chip') {
+            // console.time('stackChips');
+            stackChips(grabbed, e);
+            // console.timeEnd('stackChips');
+        }
 
-        rearrangeZIndexOnDrop(event, item);
-
-        ajax().success((resp) => { handleItemDrop(item); }).
-            postJSON(`${window.location.pathname}/update`, item.info);
+        ajax().success((resp) => {
+            grabbed.forEach((it) => { handleItemDrop(it); });
+            // all chips are put on the table
+            grabbed = [];
+        }).postJSON(`${window.location.pathname}/update_many`,
+            { 'items': grabbed.map((it) => it.info) });
     }, { once: true });
+}
+
+function setItemZIndex(item, zi) {
+    item.info.z_index = zi;
+    item.style.zIndex = `${zi}`;
 }
 
 function newItem(cls, info, x, y) {
@@ -316,6 +375,7 @@ function onCardDblClick(e, card) {
     if (isOwned(card.info) && !isOwnedBy(card.info, STATE.current_uid)) {
         return; // can't turn other player cards cards
     }
+    console.log('mouse double click', card.info.id);
     card.info.side = card.info.side == COVER ? FACE: COVER;
     ajax().success((resp) => {
         updateItem(resp.updated);
@@ -326,6 +386,7 @@ function onCardClick(e, card) {
     if (e.button != BUTTON_LEFT) {
         return;
     }
+    console.log('mouse click', card.info.id);
     if (e.ctrlKey || e.metaKey) {
         takeCard(card);
     }
@@ -591,6 +652,18 @@ function logStats() {
         `&max_ms=${STATE.requestStats.max()}` +
         `&median_ms=${STATE.requestStats.median()}`;
     ajax().get(`/log?type=client_stats&${stats}`);
+}
+
+function getChipsFromPoint(x, y) {
+    res = [];
+    for (c of Object.values(STATE.chipIndex.byId)) {
+        const rect = new Rect(c);
+        if (rect.contains(x, y)) {
+            res.push(c);
+        }
+    }
+    res.sort((a, b) => b.info.zIndex - a.info.zIndex );
+    return res;
 }
 
 function start() {
