@@ -544,6 +544,43 @@ func updateItem(ctx *Context, r *http.Request) (*poker.TableItem, error) {
 	return dest, nil
 }
 
+func (s *server) updateMany(ctx *Context, r *http.Request) (*httpx.Response, error) {
+	curUser, table := ctx.user, ctx.table
+	var updated []*poker.TableItem
+	var frm struct {
+		Items []*poker.TableItem `json:"items"`
+	}
+	if err := table.Update(func(t *poker.Table) error {
+		if table.Players[curUser.ID] == nil {
+			return httpx.NewError(http.StatusForbidden, "you are not at the table")
+		}
+		if err := json.NewDecoder(r.Body).Decode(&frm); err != nil {
+			return err
+		}
+		logger.Debug.Printf("UpdateMany: len=%d %+v", len(frm.Items), frm.Items)
+		for _, v := range frm.Items {
+			dest := table.Items.Get(v.ID)
+			if dest == nil {
+				logger.Error.Printf("item_id=%d not found", v.ID)
+				continue
+			}
+			if err := dest.UpdateFrom(curUser, v); err != nil {
+				logger.Error.Printf("update: item_id=%d %s", v)
+				continue
+			}
+			updated = append(updated, v)
+		}
+		frm.Items = updated
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	logger.Debug.Printf("%s updated %+v", ctx, updated)
+	// push updates: potentially long operation - check
+	ctx.table.NotifyOthers(curUser, poker.NewPushItems(updated...))
+	return httpx.JSON(http.StatusOK, frm), nil
+}
+
 func (s *server) updateTable(ctx *Context, r *http.Request) (*httpx.Response, error) {
 	curUser, table := ctx.user, ctx.table
 	var updated poker.TableItem
@@ -782,6 +819,7 @@ func handleSignalsLoop(srv *server) {
 	os.Exit(0)
 }
 
+// TODO_TECHDEBT: introduce Table.UpdateBy(userID, ...)
 // TODO: add metrics
 // TODO: connect metrics to Graphana
 // TODO: decide what to do with abandoned tables. Now they not only stay in memory but also
@@ -839,6 +877,8 @@ func main() {
 		httpx.H(auth(tableHandler(s.joinTable)))).Methods("GET")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/update",
 		httpx.H(auth(tableHandler(s.updateTable)))).Methods("POST")
+	r.HandleFunc("/games/{id:[a-z0-9-]+}/update_many",
+		httpx.H(auth(tableHandler(s.updateMany)))).Methods("POST")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/show_card",
 		httpx.H(auth(tableHandler(s.showCard)))).Methods("POST")
 	r.HandleFunc("/games/{id:[a-z0-9-]+}/take_card",
