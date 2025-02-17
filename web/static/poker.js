@@ -8,6 +8,8 @@ const BUTTON_LEFT = 0;
 const TAP_MAX_DURATION_MS = 300;
 const MOVE_UPDATE_THROTTLE_MS = 30;
 
+const DRAG_ZINDEX = 11000;
+
 class ByValueIndex {
     constructor() {
         this.lookup = {};
@@ -104,9 +106,8 @@ function handleCardDrop(card, slots) {
         if (!slot.playerElem) {
             continue;
         }
-        const slotRect = new Rect(slot);
         const owner_id = slot.playerElem.info.owner_id;
-        if (rect.centerWithin(slotRect)) {
+        if (rect.centerWithin(slot.rect)) {
             if (STATE.current_uid == owner_id) {
                 takeCard(card);
             } else {
@@ -242,8 +243,7 @@ function onItemMouseDown(e, item) {
         it.initialZIndex = parseInt(window.getComputedStyle(it).zIndex);
     }
     // push items to top when they are being dragged
-    const dragZIndex = 11000;
-    grabbed.forEach((it) => { setItemZIndex(it, dragZIndex + it.initialZIndex); });
+    grabbed.forEach((it) => { setItemZIndex(it, DRAG_ZINDEX + it.initialZIndex); });
 
     function onMouseMove(event) {
         if (activePtrID != event.pointerId) {
@@ -252,7 +252,6 @@ function onItemMouseDown(e, item) {
         if (grabbed.length < 1) {
             return;
         }
-        console.log('mouse move', item.info.id);
 
         // console.log('move coords', tableX, tableY, tableRect.left);
         if (isOffTheTable(item, event.clientX, event.clientY)) {
@@ -285,7 +284,6 @@ function onItemMouseDown(e, item) {
         if (activePtrID != e.pointerId) {
             return;
         }
-        console.log('mouse up', item.info.id);
         // cleanup for this drag-n-drop
         document.removeEventListener('pointermove', onMouseMove);
         // restore z-index
@@ -298,13 +296,9 @@ function onItemMouseDown(e, item) {
             grabbed = [];
             return; // no real move happened, no need to post updates
         }
-        // console.time('rearrangeZIndexOnDrop');
         rearrangeZIndexOnDrop(grabbed);
-        // console.timeEnd('rearrangeZIndexOnDrop');
         if (item.info.class == 'chip') {
-            // console.time('stackChips');
             stackChips(grabbed, e);
-            // console.timeEnd('stackChips');
         }
 
         ajax().success((resp) => {
@@ -424,15 +418,15 @@ function accountChip(chip, slots) {
         if (!slot.chips) {
             continue;
         }
-        slotRect = new Rect(slot);
         if (chip.id in slot.chips) {
             delete slot.chips[chip.id];
         }
-        if (rect.centerWithin(slotRect)) {
+        if (rect.centerWithin(slot.rect)) {
             slot.chips[chip.id] = chip;
             if (slot.playerElem && !isOwnedBy(slot.playerElem.info, STATE.current_uid)) {
                 chip.classList.add('forbidden');
             }
+            return; // slots do not intersect
             // console.log(`${chip.info.class} id=${chip.id} within player ${slot.dataset.index} slot`);
         } else {
             // console.log(`${chip.info.class} id=${chip.id} outside of any player slot`);
@@ -491,11 +485,11 @@ function updateSlotsWithMoney(slot) {
 
 function updateItem(src) {
     if (src === null || src === undefined) {
-        return;
+        return null;
     }
     if (src.id === null || src.id === undefined) {
         console.log('warn bad id', src);
-        return;
+        return null;
     }
     let item = document.getElementById(`item-${src.id}`);
     if (item == null) {
@@ -509,14 +503,19 @@ function updateItem(src) {
         item.style.zIndex = src.z_index != 0 ? `${src.z_index}` : '';
     }
     item.render();
+    return item;
 }
 
 function updateItems(items) {
     const slots = document.querySelectorAll('.slot');
     for (let it of items) {
-        updateItem(it);
-        if (it.class == 'chip') {
-            const item = document.getElementById(`item-${it.id}`);
+        const item = updateItem(it);
+        // XXX: optimization - do not account while chip is moving
+        // to reduce the number of useless calls to accountChip
+        // accountChip takes noticable time if there are many chips moving at once.
+        // It is enough to call it when the stack has been put on the table
+        const isMoving = it.z_index >= DRAG_ZINDEX;
+        if (it.class == 'chip' && !isMoving) {
             accountChip(item, slots);
         }
     }
@@ -668,7 +667,10 @@ function getChipsFromPoint(x, y) {
 
 function start() {
     const slots = document.querySelectorAll('.slot');
-    slots.forEach((slot) => { slot.chips = {}; });
+    slots.forEach((slot) => {
+        slot.chips = {};
+        slot.rect = new Rect(slot);
+    });
 
     STATE.current_uid = getSession().user_id;
     STATE.theTable = document.getElementById('card-table');
