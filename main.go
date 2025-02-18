@@ -48,7 +48,7 @@ var (
 
 	errChanClosed = errors.New("channel closed")
 
-	usernameValidator = regexp.MustCompile("(?i)^[a-z0-9_-]+?$")
+	usernameValidator = regexp.MustCompile("(?i)^[a-zа-яЁё0-9_-]+?$")
 )
 
 type m map[string]any
