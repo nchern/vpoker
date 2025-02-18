@@ -427,9 +427,6 @@ function accountChip(chip, slots) {
                 chip.classList.add('forbidden');
             }
             return; // slots do not intersect
-            // console.log(`${chip.info.class} id=${chip.id} within player ${slot.dataset.index} slot`);
-        } else {
-            // console.log(`${chip.info.class} id=${chip.id} outside of any player slot`);
         }
     }
 }
