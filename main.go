@@ -819,11 +819,13 @@ func handleSignalsLoop(srv *server) {
 	os.Exit(0)
 }
 
+// TODO_TECHDEBT: move images in a separate subfolder /img/
+// TODO: introduce versiononing for javascript to make sure clients get always up-to-date versions
 // TODO_TECHDEBT: introduce Table.UpdateBy(userID, ...)
 // TODO: add metrics
-// TODO: connect metrics to Graphana
+// TODO: connect metrics to Grafana
 // TODO: decide what to do with abandoned tables. Now they not only stay in memory but also
-// keep websocket groutines/channels forever
+// keep websocket groutines/channels until browser window is not closed
 func main() {
 	s := &server{
 		endpoint: ":8080",
