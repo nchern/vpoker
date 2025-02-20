@@ -24,14 +24,14 @@ vet:
 
 .PHONY: generate
 generate:
-	echo generate target
+	@./tools/gen-version.sh pkg/version/version_generated.go
 
 .PHONY: build
-build: generate vet
+build: vet
 	@go build -o bin/$(OUT) .
 
 .PHONY: install
-install: build
+install: generate build
 	@go install ./...
 
 .PHONY: test
