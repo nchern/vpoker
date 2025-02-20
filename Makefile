@@ -47,13 +47,13 @@ base-builder-image:
 container-image:
 	@docker build -t $(IMAGE_NAME) .
 
-# .PHONY: coverage
-# coverage: vet
-# 	@./tools/coverage.sh
+.PHONY: coverage
+coverage: vet
+	@./tools/coverage.sh
 
-# .PHONY: coverage-html
-# coverage-html: vet
-# 	@./tools/coverage.sh html
+.PHONY: coverage-html
+coverage-html: vet
+	@./tools/coverage.sh html
 
 .PHONY: nginx-config
 nginx-config:
