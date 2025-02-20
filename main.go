@@ -28,6 +28,7 @@ import (
 	"github.com/nchern/vpoker/pkg/httpx"
 	"github.com/nchern/vpoker/pkg/logger"
 	"github.com/nchern/vpoker/pkg/poker"
+	"github.com/nchern/vpoker/pkg/version"
 )
 
 func init() {
@@ -491,6 +492,7 @@ func (s *server) profile(r *http.Request) (*httpx.Response, error) {
 	return httpx.RenderFile(http.StatusOK, "web/profile.html", m{
 		"Retpath":  sanitizedRetpath(r.URL),
 		"Username": sess.user.Name,
+		"Version":  version.JSVersion(),
 	})
 }
 
@@ -660,6 +662,7 @@ func (s *server) renderTable(ctx *Context, r *http.Request) (*httpx.Response, er
 		"Players":  players,
 		"TableID":  table.ID,
 		"Username": curUser.Name,
+		"Version":  version.JSVersion(),
 	})
 }
 
@@ -756,6 +759,7 @@ func (s *server) index(r *http.Request) (*httpx.Response, error) {
 
 	return httpx.RenderFile(http.StatusOK, "web/index.html", m{
 		"Username": username,
+		"Version":  version.JSVersion(),
 	}, emptySess)
 }
 
@@ -820,7 +824,6 @@ func handleSignalsLoop(srv *server) {
 }
 
 // TODO_TECHDEBT: move images in a separate subfolder /img/
-// TODO: introduce versiononing for javascript to make sure clients get always up-to-date versions
 // TODO_TECHDEBT: introduce Table.UpdateBy(userID, ...)
 // TODO: add metrics
 // TODO: connect metrics to Grafana

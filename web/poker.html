@@ -5,12 +5,12 @@
     <meta name="viewport"
         content="width=device-width, minimum-scale=0.5, maximum-scale=1.5, initial-scale=1, user-scalable=yes">
 
-    <link rel="stylesheet" href="/static/poker.css">
+    <link rel="stylesheet" href="/static/poker.css?v={{ .Version }}">
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
 
-    <script src="/static/lib.js"></script>
-    <script src="/static/poker.js"></script>
-    <script src="/static/mobile.js"></script>
+    <script src="/static/lib.js?v={{ .Version }}"></script>
+    <script src="/static/poker.js?v={{ .Version }}"></script>
+    <script src="/static/mobile.js?v={{ .Version }}"></script>
     <title>Poker table: {{ .Username }}</title>
 
     <style>

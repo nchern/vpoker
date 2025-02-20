@@ -75,6 +75,7 @@ func shuffle(items []*TableItem) {
 
 // StartGame rearranges all the objects on the table to the initial state
 func (t *Table) StartGame() *Table {
+	logger.Debug.Printf("StartGame begin table_id=%s seq=%d", t.ID, int(t.idSeq))
 	for _, c := range t.Deck {
 		t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), 0, 0).AsCard(c))
 	}
@@ -91,6 +92,7 @@ func (t *Table) StartGame() *Table {
 		x++
 	}
 	t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), 595, 315).AsDealer())
+	logger.Debug.Printf("StartGame finished table_id=%s seq=%d", t.ID, int(t.idSeq))
 	return t
 }
 
@@ -164,6 +166,7 @@ func (t *Table) Join(u *User) ([]*TableItem, error) {
 		// this is a safeguard, should never happen
 		return nil, httpx.NewError(http.StatusForbidden, "this table is full")
 	}
+	logger.Debug.Printf("Join begin table_id=%s seq=%d", t.ID, int(t.idSeq))
 	p := newPlayer(u, playerColors[index])
 	p.Index = index
 	p.Skin = fmt.Sprintf("player_%d", index)
@@ -174,6 +177,7 @@ func (t *Table) Join(u *User) ([]*TableItem, error) {
 	t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), 0, 0).AsPlayer(p))
 
 	t.generateChipsForPlayer(index)
+	logger.Debug.Printf("Join finished table_id=%s seq=%d", t.ID, int(t.idSeq))
 	return t.Items[startIdx:], nil
 }
 
