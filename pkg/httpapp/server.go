@@ -384,11 +384,11 @@ func (s *Server) joinTable(ctx *Context, r *http.Request) (*httpx.Response, erro
 		if hasJoined {
 			return nil
 		}
-		logger.Debug.Printf("players_joind=%d", len(t.Players))
 		var err error
 		if updated, err = t.Join(ctx.user); err != nil {
 			return err
 		}
+		logger.Debug.Printf("joinTable.joined %s players=%d", ctx, len(t.Players))
 		players = t.Players
 		return nil
 	}); err != nil {
