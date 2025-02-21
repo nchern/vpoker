@@ -214,6 +214,17 @@ func (t *Table) ReadLock(fn func(*Table) error) error {
 }
 
 // Update performs thread-safe update of this object
+func (t *Table) UpdateBy(curUserID uuid.UUID, fn func(*Table, *Player) error) error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	p := t.Players[curUserID]
+	if p == nil {
+		return httpx.NewError(http.StatusForbidden, "you are not at the table")
+	}
+	return fn(t, p)
+}
+
+// Update performs thread-safe update of this object
 func (t *Table) Update(fn func(*Table) error) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()

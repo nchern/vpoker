@@ -46,7 +46,6 @@ func saveStateLoop(s *httpapp.Server) {
 // TODO_FEAT: move multiple chips on mobile devices: handle long taps
 // TODO_FEAT: handle 4 players
 // TODO_TECHDEBT: move images in a separate subfolder /img/
-// TODO_TECHDEBT: introduce Table.UpdateBy(userID, ...)
 // TODO: add metrics
 // TODO: connect metrics to Grafana
 // TODO: decide what to do with abandoned tables. Now they not only stay in memory but also

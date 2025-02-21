@@ -25,10 +25,6 @@ const (
 )
 
 var (
-	// index      = template.Must(template.ParseFiles("web/index.html"))
-	// pokerTable = template.Must(template.ParseFiles("web/poker.html"))
-	// profile    = template.Must(template.ParseFiles("web/profile.html"))
-
 	errChanClosed = errors.New("channel closed")
 
 	usernameValidator = regexp.MustCompile("(?i)^[a-zа-яЁё0-9_-]+?$")
@@ -88,13 +84,8 @@ func (s *Server) pushTableUpdates(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return nil, err
 		}
-		var p *poker.Player
 		updates := make(chan *poker.Push)
-		if err := ctx.table.Update(func(t *poker.Table) error {
-			p = t.Players[ctx.user.ID]
-			if p == nil {
-				return httpx.NewError(http.StatusForbidden, "you are not at the table")
-			}
+		if err := ctx.table.UpdateBy(ctx.user.ID, func(t *poker.Table, p *poker.Player) error {
 			p.Subscribe(updates)
 			return nil
 		}); err != nil {
@@ -137,10 +128,7 @@ func (s *Server) pushTableUpdates(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) shuffle(ctx *Context, r *http.Request) (*httpx.Response, error) {
-	if err := ctx.table.Update(func(t *poker.Table) error {
-		if t.Players[ctx.user.ID] == nil {
-			return httpx.NewError(http.StatusForbidden, "you are not at the table")
-		}
+	if err := ctx.table.UpdateBy(ctx.user.ID, func(t *poker.Table, p *poker.Player) error {
 		ctx.table.Shuffle()
 		return nil
 	}); err != nil {
@@ -162,10 +150,7 @@ func (s *Server) showCard(ctx *Context, r *http.Request) (*httpx.Response, error
 		return nil, httpx.NewError(http.StatusBadRequest, "id field is missing")
 	}
 	var updated poker.TableItem
-	if err := ctx.table.Update(func(t *poker.Table) error {
-		if t.Players[ctx.user.ID] == nil {
-			return httpx.NewError(http.StatusForbidden, "you are not at the table")
-		}
+	if err := ctx.table.UpdateBy(ctx.user.ID, func(t *poker.Table, p *poker.Player) error {
 		item := t.Items.Get(id)
 		if item == nil {
 			return httpx.NewError(http.StatusNotFound, "item not found")
@@ -193,15 +178,8 @@ func (s *Server) giveCard(ctx *Context, r *http.Request) (*httpx.Response, error
 	}
 
 	var updated poker.TableItem
-	if err := ctx.table.Update(func(t *poker.Table) error {
-		if t.Players[ctx.user.ID] == nil {
-			return httpx.NewError(http.StatusForbidden, "you are not at the table")
-		}
-		recepient := t.Players[frm.UserID]
-		if recepient == nil {
-			return httpx.NewError(http.StatusForbidden, "recepient is not at the table")
-		}
-		item := t.Items.Get(int(frm.ID))
+	if err := ctx.table.UpdateBy(ctx.user.ID, func(t *poker.Table, recepient *poker.Player) error {
+		item := t.Items.Get(frm.ID)
 		if item == nil {
 			return httpx.NewError(http.StatusNotFound, "item not found")
 		}
@@ -225,10 +203,7 @@ func (s *Server) takeCard(ctx *Context, r *http.Request) (*httpx.Response, error
 		return nil, httpx.NewError(http.StatusBadRequest, "id field is missing")
 	}
 	var updated poker.TableItem
-	if err := ctx.table.Update(func(t *poker.Table) error {
-		if t.Players[ctx.user.ID] == nil {
-			return httpx.NewError(http.StatusForbidden, "you are not at the table")
-		}
+	if err := ctx.table.UpdateBy(ctx.user.ID, func(t *poker.Table, p *poker.Player) error {
 		item := t.Items.Get(id)
 		if item == nil {
 			return httpx.NewError(http.StatusNotFound, "item not found")
@@ -288,9 +263,6 @@ func (s *Server) updateProfile(r *http.Request) (*httpx.Response, error) {
 
 func updateItem(ctx *Context, r *http.Request) (*poker.TableItem, error) {
 	curUser, table := ctx.user, ctx.table
-	if table.Players[curUser.ID] == nil {
-		return nil, httpx.NewError(http.StatusForbidden, "you are not at the table")
-	}
 	var src poker.TableItem
 	if err := json.NewDecoder(r.Body).Decode(&src); err != nil {
 		return nil, err
@@ -312,10 +284,7 @@ func (s *Server) updateMany(ctx *Context, r *http.Request) (*httpx.Response, err
 	var frm struct {
 		Items []*poker.TableItem `json:"items"`
 	}
-	if err := table.Update(func(t *poker.Table) error {
-		if table.Players[curUser.ID] == nil {
-			return httpx.NewError(http.StatusForbidden, "you are not at the table")
-		}
+	if err := table.UpdateBy(curUser.ID, func(t *poker.Table, p *poker.Player) error {
 		var buf bytes.Buffer
 		rdr := io.TeeReader(r.Body, &buf)
 		if err := json.NewDecoder(rdr).Decode(&frm); err != nil {
@@ -350,7 +319,7 @@ func (s *Server) updateMany(ctx *Context, r *http.Request) (*httpx.Response, err
 func (s *Server) updateTable(ctx *Context, r *http.Request) (*httpx.Response, error) {
 	curUser, table := ctx.user, ctx.table
 	var updated poker.TableItem
-	if err := table.Update(func(t *poker.Table) error {
+	if err := table.UpdateBy(curUser.ID, func(t *poker.Table, p *poker.Player) error {
 		up, err := updateItem(ctx, r)
 		if err != nil {
 			return err
