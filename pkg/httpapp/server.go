@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"net/http"
 	"regexp"
@@ -26,9 +25,9 @@ const (
 )
 
 var (
-	index      = template.Must(template.ParseFiles("web/index.html"))
-	pokerTable = template.Must(template.ParseFiles("web/poker.html"))
-	profile    = template.Must(template.ParseFiles("web/profile.html"))
+	// index      = template.Must(template.ParseFiles("web/index.html"))
+	// pokerTable = template.Must(template.ParseFiles("web/poker.html"))
+	// profile    = template.Must(template.ParseFiles("web/profile.html"))
 
 	errChanClosed = errors.New("channel closed")
 
@@ -280,9 +279,9 @@ func (s *Server) updateProfile(r *http.Request) (*httpx.Response, error) {
 	if retPath := sanitizedRetpath(r.URL); retPath != "" {
 		return httpx.Redirect(retPath).SetCookie(lastNameCookie), nil
 	}
-	return httpx.Render(
+	return httpx.RenderFile(
 		http.StatusOK,
-		profile,
+		"web/profile.html",
 		m{"Username": sess.user.Name},
 		lastNameCookie)
 }
