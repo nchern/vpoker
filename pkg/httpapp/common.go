@@ -29,6 +29,14 @@ type session struct {
 	user *poker.User `json:"-"`
 }
 
+func newSession(now time.Time, u *poker.User) *session {
+	return &session{
+		CreatedAt: now,
+		UserID:    u.ID,
+		Name:      u.Name,
+	}
+}
+
 func (s *session) toJSON() []byte {
 	b, err := json.Marshal(s)
 	if err != nil {
@@ -37,8 +45,14 @@ func (s *session) toJSON() []byte {
 	return b
 }
 
-func (s *session) toCookie() string {
-	return base64.URLEncoding.EncodeToString(s.toJSON())
+func (s *session) toCookie(now time.Time) *http.Cookie {
+	val := base64.URLEncoding.EncodeToString(s.toJSON())
+	return &http.Cookie{
+		Path:    "/",
+		Value:   val,
+		Name:    "session",
+		Expires: now.Add(cookieExpiresAt),
+	}
 }
 
 func (s *session) parseFromCookie(v string) error {
@@ -58,15 +72,6 @@ func (s *session) parseFromCookie(v string) error {
 func randomString() string {
 	number := rand.Intn(10000) + 1
 	return strconv.Itoa(number)
-}
-
-func newSessionCookie(now time.Time, v string) *http.Cookie {
-	return &http.Cookie{
-		Path:    "/",
-		Value:   v,
-		Name:    "session",
-		Expires: now.Add(cookieExpiresAt),
-	}
 }
 
 func newEmptySession() *http.Cookie {

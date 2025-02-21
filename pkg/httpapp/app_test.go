@@ -41,11 +41,11 @@ func TestAuthProtectedHandlersShouldReturnUnauthorizedOnNoAuth(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.method+"_"+tt.url, func(t *testing.T) {
 			underTest := New()
-			router := BindRoutes(underTest)
 
 			req := httptest.NewRequest(tt.method, tt.url, nil)
 			rec := httptest.NewRecorder()
 
+			router := BindRoutes(underTest)
 			router.ServeHTTP(rec, req)
 
 			res := rec.Result()
@@ -69,11 +69,11 @@ func TestHandlersShouldRedirectOnNoAuth(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.method+"_"+tt.url, func(t *testing.T) {
 			underTest := New()
-			router := BindRoutes(underTest)
 
 			req := httptest.NewRequest(tt.method, tt.url, nil)
 			rec := httptest.NewRecorder()
 
+			router := BindRoutes(underTest)
 			router.ServeHTTP(rec, req)
 
 			res := rec.Result()
@@ -109,7 +109,7 @@ func TestTableHandlersShouldReturnErrorIfPlayerIsNotAtTheTable(t *testing.T) {
 
 			now := time.Now()
 			u := poker.NewUser(uuid.New(), "tester", now)
-			sess := &session{UserID: u.ID, CreatedAt: now, Name: u.Name}
+			sess := newSession(now, u)
 			underTest.users.Set(u.ID, u)
 
 			tbl := poker.NewTable(uuid.New(), 1)
@@ -121,7 +121,7 @@ func TestTableHandlersShouldReturnErrorIfPlayerIsNotAtTheTable(t *testing.T) {
 				reqBody = bytes.NewBuffer([]byte(tt.givenBody))
 			}
 			req := httptest.NewRequest(tt.method, path, reqBody)
-			req.AddCookie(newSessionCookie(now, sess.toCookie()))
+			req.AddCookie(sess.toCookie(now))
 
 			rec := httptest.NewRecorder()
 			router := BindRoutes(underTest)

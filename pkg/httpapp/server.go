@@ -494,7 +494,7 @@ func (s *Server) newUser(r *http.Request) (*httpx.Response, error) {
 		u := poker.NewUser(uuid.New(), name, now)
 		s.users.Set(u.ID, u)
 		sess := &session{UserID: u.ID, CreatedAt: now, Name: u.Name}
-		cookie := newSessionCookie(now, sess.toCookie())
+		cookie := sess.toCookie(now)
 		ctx, err := newContextBuilder(r.Context()).build()
 		if err != nil {
 			return nil, err
