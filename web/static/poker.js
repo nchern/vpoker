@@ -32,19 +32,19 @@ class ByValueIndex {
 }
 
 const STATE = {
-    'current_uid': 0,
+    current_uid: 0,
 
-    'players': {},
-    'theTable': null,
+    players: {},
+    theTable: null,
 
-    'chipIndex': new ByValueIndex(),
+    chipIndex: new ByValueIndex(),
 
-    'socket': null,
-    'requestStats': new Stats(),
+    socket: null,
+    requestStats: new Stats(),
 
-    'lastTapTime': 0,
+    lastTapTime: 0,
 
-    'tab_disconnected': false,
+    tab_disconnected: false,
 }
 
 function getSession() {
@@ -222,7 +222,6 @@ function onItemMouseDown(e, item) {
     if (item.info.class == 'chip' && isOnOtherPlayerSlot(item)) {
         return;
     }
-    console.log('mouse down', item.info.id);
 
     let initialMouseX = e.clientX;
     let initialMouseY = e.clientY;
@@ -380,7 +379,6 @@ function onCardClick(e, card) {
     if (e.button != BUTTON_LEFT) {
         return;
     }
-    console.log('mouse click', card.info.id);
     if (e.ctrlKey || e.metaKey) {
         takeCard(card);
     }
@@ -404,7 +402,6 @@ function newCard(info, x, y) {
     });
 
     card.render = () => { renderCard(card); };
-    card.render();
     return card;
 }
 
@@ -461,7 +458,6 @@ function newPlayer(info, x, y) {
         item.style.left = '';   // use from css
         item.style.top = '';    // use from css
     };
-    item.render();
     return item;
 }
 
