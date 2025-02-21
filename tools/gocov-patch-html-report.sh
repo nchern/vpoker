@@ -6,18 +6,17 @@ set -ue
 patch_html() {
 cat << EOF
                 <!--- PATCH --->
-                <label for="filter_files">Filter: </label>
+                <label for="filter_files" style="font-size:12px">Filter: </label>
                 <input type="text" id="filter_files" placeholder="Type to filter">
-                <label for="sort_files">Sort by coverage: </label>
+                <label for="sort_files" style="font-size:12px">Sort by coverage: </label>
                 <input type="checkbox" id="sort_files" name="sort_files" />
                 <!--- END PATCH --->
 EOF
 }
 
 patch_script() {
-    echo "    // PATCH"
     cat << EOF
-    (function() {
+        // PATCH
         function refreshOptions(options) {
             for (let i = 0; i < options.length; i++) {
                 var opt = files.options[i];
@@ -47,6 +46,11 @@ patch_script() {
         document.getElementById("filter_files").addEventListener("keydown", function(e) {
             if (e.key === "Enter") {
                 refreshOptions(files.options);
+                var selected = files.selectedOptions[0];
+                if (!selected) {
+                    return;
+                }
+                select(selected.value);
             }
         });
 
@@ -74,17 +78,12 @@ patch_script() {
             opts.forEach(option => { files.appendChild(option); });
             refreshOptions(files.options);
         });
-    })();
-    // END PATCH
+        // END PATCH
 EOF
 }
 
 
 HTML_PATCHED=0
-SCRIPT_PATCHED=0
-
-BODY_FINISHED=0
-SCRIPT_FINISHED=0
 
 while IFS= read -r line
 do
@@ -95,20 +94,10 @@ do
                 HTML_PATCHED=1
             fi
             ;;
-        *"</body>" )
-            BODY_FINISHED=1
-            ;;
-        *"<script>" )
-            SCRIPT_FINISHED=0
-            ;;
-        *"</script>" )
-            SCRIPT_FINISHED=1
+        *"})();"    )
+            patch_script
             ;;
     esac
-    if [ "$BODY_FINISHED" -eq 1 ] && [ "$SCRIPT_FINISHED" -eq 1 ] && [ "$SCRIPT_PATCHED" -eq 0 ]; then
-        patch_script
-        SCRIPT_PATCHED=1
-    fi
 
     echo "$line"
 done
