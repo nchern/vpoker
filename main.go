@@ -41,6 +41,8 @@ func saveStateLoop(s *httpapp.Server) {
 	}
 }
 
+// TODO_TECHDEBT: test new user handler {"/users/new", "GET"}
+// TODO_TECHDEBT: test {"/games/%s/kick", "POST"},
 // TODO_FEAT: move multiple chips on mobile devices: handle long taps
 // TODO_FEAT: handle 4 players
 // TODO_TECHDEBT: move images in a separate subfolder /img/

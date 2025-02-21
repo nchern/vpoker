@@ -1,16 +1,25 @@
 package httpapp
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
+	"github.com/nchern/vpoker/pkg/poker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TODO_TECHDEBT: test new user handler {"/users/new", "GET"}
+func assertReader(t *testing.T, expected string, r io.Reader) {
+	b, err := io.ReadAll(r)
+	require.NoError(t, err)
+	assert.Equal(t, expected, string(b))
+}
 
 func TestAuthProtectedHandlersShouldReturnUnauthorizedOnNoAuth(t *testing.T) {
 	var tests = []struct {
@@ -43,9 +52,7 @@ func TestAuthProtectedHandlersShouldReturnUnauthorizedOnNoAuth(t *testing.T) {
 			defer res.Body.Close()
 
 			assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
-			b, err := io.ReadAll(res.Body)
-			require.NoError(t, err)
-			require.Equal(t, "Unauthorized", string(b))
+			assertReader(t, "Unauthorized", res.Body)
 		})
 	}
 }
@@ -76,6 +83,55 @@ func TestHandlersShouldRedirectOnNoAuth(t *testing.T) {
 			loc, err := res.Location()
 			require.NoError(t, err)
 			assert.Equal(t, "/users/new", loc.Path)
+		})
+	}
+}
+
+func TestTableHandlersShouldReturnErrorIfPlayerIsNotAtTheTable(t *testing.T) {
+	var tests = []struct {
+		url    string
+		method string
+
+		givenBody string
+	}{
+		{"/games/%s/state", "GET", ""},
+		{"/games/%s/update", "POST", "{}"},
+		{"/games/%s/update_many", "POST", "{}"},
+		{"/games/%s/show_card", "POST", "{\"id\": 123}"},
+		{"/games/%s/take_card", "POST", "{\"id\": 123}"},
+		{"/games/%s/give_card", "POST", "{\"id\": 123}"},
+		{"/games/%s/listen", "GET", ""},
+		{"/games/%s/shuffle", "GET", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.method+"_"+tt.url, func(t *testing.T) {
+			underTest := New()
+
+			now := time.Now()
+			u := poker.NewUser(uuid.New(), "tester", now)
+			sess := &session{UserID: u.ID, CreatedAt: now, Name: u.Name}
+			underTest.users.Set(u.ID, u)
+
+			tbl := poker.NewTable(uuid.New(), 1)
+			underTest.tables.Set(tbl.ID, tbl)
+
+			path := fmt.Sprintf(tt.url, tbl.ID)
+			var reqBody io.Reader = nil
+			if tt.givenBody != "" {
+				reqBody = bytes.NewBuffer([]byte(tt.givenBody))
+			}
+			req := httptest.NewRequest(tt.method, path, reqBody)
+			req.AddCookie(newSessionCookie(now, sess.toCookie()))
+
+			rec := httptest.NewRecorder()
+			router := BindRoutes(underTest)
+			router.ServeHTTP(rec, req)
+
+			res := rec.Result()
+			defer res.Body.Close()
+
+			assert.Equal(t, http.StatusForbidden, res.StatusCode)
+			assertReader(t, "you are not at the table", res.Body)
 		})
 	}
 }
