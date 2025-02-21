@@ -1,10 +1,12 @@
 package httpapp
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
@@ -315,10 +317,12 @@ func (s *Server) updateMany(ctx *Context, r *http.Request) (*httpx.Response, err
 		if table.Players[curUser.ID] == nil {
 			return httpx.NewError(http.StatusForbidden, "you are not at the table")
 		}
-		if err := json.NewDecoder(r.Body).Decode(&frm); err != nil {
+		var buf bytes.Buffer
+		rdr := io.TeeReader(r.Body, &buf)
+		if err := json.NewDecoder(rdr).Decode(&frm); err != nil {
 			return err
 		}
-		logger.Debug.Printf("UpdateMany: len=%d %+v", len(frm.Items), frm.Items)
+		logger.Debug.Printf("UpdateMany: len=%d %s", len(frm.Items), &buf)
 		for _, v := range frm.Items {
 			dest := table.Items.Get(v.ID)
 			if dest == nil {
@@ -326,7 +330,7 @@ func (s *Server) updateMany(ctx *Context, r *http.Request) (*httpx.Response, err
 				continue
 			}
 			if err := dest.UpdateFrom(curUser, v); err != nil {
-				logger.Error.Printf("update: item_id=%d %s", v)
+				logger.Error.Printf("update: item_id=%d %+v %s", dest.ID, v, err)
 				continue
 			}
 			updated = append(updated, v)
@@ -336,7 +340,9 @@ func (s *Server) updateMany(ctx *Context, r *http.Request) (*httpx.Response, err
 	}); err != nil {
 		return nil, err
 	}
-	logger.Debug.Printf("%s updated %+v", ctx, updated)
+	for _, v := range updated {
+		logger.Debug.Printf("%s updated %+v", ctx, v)
+	}
 	// push updates: potentially long operation - check
 	ctx.table.NotifyOthers(curUser, poker.NewPushItems(updated...))
 	return httpx.JSON(http.StatusOK, frm), nil
@@ -462,8 +468,10 @@ func (s *Server) newTable(r *http.Request) (*httpx.Response, error) {
 	logger.Info.Printf("user_id=%s action=table_created", curUser.ID)
 
 	table := poker.NewTable(uuid.New(), 50).StartGame()
+	if _, err := table.Join(curUser); err != nil {
+		return nil, err
+	}
 	s.tables.Set(table.ID, table)
-	table.Join(curUser)
 
 	return httpx.Redirect(fmt.Sprintf("/games/%s", table.ID)), nil
 }
