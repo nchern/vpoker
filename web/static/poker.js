@@ -31,6 +31,123 @@ class ByValueIndex {
     }
 }
 
+class TableItem {
+    constructor(cls, info) {
+        const elem = document.createElement('div');
+
+        this.info = info;
+        this.elem = elem;
+
+        // TODO: this should be removed
+        elem.info = info;
+        this.setXY(info.x, info.y);
+
+        elem.ondragstart = () => false;
+        // Make the item draggable
+        elem.addEventListener('pointerdown', (e) => { onItemMouseDown(e, this.elem); });
+    }
+
+    getElem() { return this.elem; }
+
+    id() { return this.elem.id; }
+
+    isOwned() { return this.info.owner_id != ''; }
+
+    isOwnedBy(user_id) { return this.info.owner_id == user_id; }
+
+    render() {}
+
+    setXY(x, y) {
+        this.elem.style.left = `${x}px`;
+        this.elem.style.top = `${y}px`;
+        return this;
+    }
+
+    zIndex() { return parseInt(window.getComputedStyle(this.elem).zIndex); }
+
+    setZIndex(zIndex) {
+        this.elem.style.zIndex = zIndex;
+        return this;
+    }
+}
+
+class Card extends TableItem {
+    constructor(info) {
+        super('card', info);
+
+        this.elem.addEventListener('click', (e) => { onCardClick(e, this.elem) });
+        this.elem.addEventListener('dblclick', (e) => { onCardDblClick(e, this.elem) });
+        this.elem.addEventListener('touchend', (e) => {
+            const currentTime = new Date().getTime();
+            const tapInterval = currentTime - STATE.lastTapTime;
+            if (tapInterval < TAP_MAX_DURATION_MS) {
+                e.button = BUTTON_LEFT;
+                onCardDblClick(e, this.elem);
+            }
+            STATE.lastTapTime = currentTime;
+        });
+    }
+
+    render() {
+        let text = '';
+        let color = 'black';
+        let side = this.info.side;
+        let css = `card_${side}`;
+
+        this.elem.style.borderColor = '';
+        this.elem.classList.remove('card_cover', 'card_face', 'owned', 'was_owned');
+
+        const owner_id = this.info.owner_id;
+        if (this.isOwned()) {
+            setCardBorder(this.elem, owner_id, 'owned');
+        } else if (this.info.prev_owner_id != '') {
+            setCardBorder(this.elem, this.info.prev_owner_id, 'was_owned');
+        }
+        if (side == FACE) {
+            text = `${this.info.rank} ${this.info.suit}`;
+            color = this.info.suit == '♥' || this.info.suit == '♦' ? 'red': 'black';
+        }
+        this.elem.innerText = text;
+        this.elem.classList.add(css);
+        this.elem.style.color = color;
+    }
+}
+
+class Chip extends TableItem {
+    constructor(info) {
+        super('chip', info);
+        this.elem.innerText = info.val;
+        this.elem.classList.add(`chip-${info.color}`);
+    }
+}
+
+class Dealer extends TableItem {
+    constructor(info) {
+        super('dealer', info);
+        this.elem.innerText = 'Dealer';
+    }
+}
+
+class Player extends TableItem {
+    constructor(info) {
+        super('player', info);
+        const player = STATE.players[info.owner_id];
+        this.elem.classList.add(player.skin);
+        this.elem.classList.add('fancy_text');
+        this.elem.innerText = player.Name;
+
+        const slot = document.getElementById(`slot-${player.index}`);
+        slot.playerElem = elem;
+    }
+
+    render() {
+        // HACK
+        this.elem.style.zIndex = ''; // use from css
+        this.elem.style.left = '';   // use from css
+        this.elem.style.top = '';    // use from css
+    };
+}
+
 const STATE = {
     current_uid: 0,
 
@@ -38,6 +155,8 @@ const STATE = {
     theTable: null,
 
     chipIndex: new ByValueIndex(),
+
+    items: {},
 
     socket: null,
     requestStats: new Stats(),
@@ -251,8 +370,6 @@ function onItemMouseDown(e, item) {
         if (grabbed.length < 1) {
             return;
         }
-
-        // console.log('move coords', tableX, tableY, tableRect.left);
         if (isOffTheTable(item, event.clientX, event.clientY)) {
             return; // disallow to move items outside the table
         }
@@ -487,13 +604,14 @@ function updateItem(src) {
     let item = document.getElementById(`item-${src.id}`);
     if (item == null) {
         item = createItem(src);
-    }
-    item.info = src;
-    item.style.top = `${src.y}px`;
-    item.style.left = `${src.x}px`;
-    if (src.z_index != null && src.z_index != undefined &&
-        src.class != 'dealer') {
-        item.style.zIndex = src.z_index != 0 ? `${src.z_index}` : '';
+    } else {
+        item.info = src;
+        item.style.top = `${src.y}px`;
+        item.style.left = `${src.x}px`;
+        if (src.z_index != null && src.z_index != undefined &&
+            src.class != 'dealer') {
+            item.style.zIndex = src.z_index != 0 ? `${src.z_index}` : '';
+        }
     }
     item.render();
     return item;
