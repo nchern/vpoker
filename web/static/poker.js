@@ -31,6 +31,186 @@ class ByValueIndex {
     }
 }
 
+class TableItem {
+    constructor(cls, info) {
+        const elem = document.createElement('div');
+        elem.id = `item-${info.id}`
+        elem.classList.add(cls);
+
+        this.info = info;
+        this.elem = elem;
+
+        this.setXY(info.x, info.y);
+
+        // TODO: this should be removed
+        elem.info = info;
+
+        elem.ondragstart = () => false;
+        // Make the item draggable
+        elem.addEventListener('pointerdown', (e) => { onItemMouseDown(e, this); });
+    }
+
+    getElem() { return this.elem; }
+
+    getRect() { return new Rect(this.elem); }
+
+    id() { return this.elem.id; }
+
+    isOwned() { return this.info.owner_id != ''; }
+
+    isOwnedBy(user_id) { return this.info.owner_id == user_id; }
+
+    handleDrop(slots) {}
+
+    render() {}
+
+    setXY(x, y) {
+        this.info.x = x;
+        this.info.y = y;
+        this.elem.style.left = `${x}px`;
+        this.elem.style.top = `${y}px`;
+        return this;
+    }
+
+
+    update(src) {
+        this.setXY(src.x, src.y);
+        if (src.z_index && src.class != 'dealer') {
+            this.elem.style.zIndex = src.z_index != 0 ? `${src.z_index}` : '';
+        }
+        this.info = src;
+    }
+
+    zIndex() { return parseInt(window.getComputedStyle(this.elem).zIndex); }
+
+    setZIndex(zi) {
+        this.info.z_index = zi;
+        this.elem.style.zIndex = `${zi}`;
+        return this;
+    }
+}
+
+class Card extends TableItem {
+    constructor(info) {
+        super('card', info);
+
+        this.elem.addEventListener('click', (e) => { onCardClick(e, this) });
+        this.elem.addEventListener('dblclick', (e) => { onCardDblClick(e, this) });
+        this.elem.addEventListener('touchend', (e) => {
+            const currentTime = new Date().getTime();
+            const tapInterval = currentTime - STATE.lastTapTime;
+            if (tapInterval < TAP_MAX_DURATION_MS) {
+                e.button = BUTTON_LEFT;
+                onCardDblClick(e, this.elem);
+            }
+            STATE.lastTapTime = currentTime;
+        });
+    }
+
+    handleDrop(slots) {
+        const rect = this.getRect();
+        for (let slot of slots) {
+            if (!slot.playerElem) {
+                continue;
+            }
+            const owner_id = slot.playerElem.info.owner_id;
+            if (rect.centerWithin(slot.rect)) {
+                if (STATE.current_uid == owner_id) {
+                    takeCard(this);
+                } else {
+                    if (!this.isOwned()) {
+                        ajax().success((resp) => { updateItem(resp.updated); }).
+                            postJSON(`${window.location.pathname}/give_card?id=${this.info.id}&user_id=${owner_id}`);
+                    }
+                }
+                return;
+            }
+        }
+        const showSlot = document.getElementById('round-slot');
+        if (rect.centerWithin(new Rect(showSlot))) {
+            if (this.isOwned()) {
+                showCard(this);
+            }
+            // TODO: disable auto open in case of non-owned cards
+            // currently this conflicts with turning a card by a double-click
+            // else {
+            //     card.info.side = FACE;
+            //     ajax().success((resp) => { updateItem(resp.updated); }).
+            //         postJSON(`${window.location.pathname}/update`, card.info);
+            // }
+        }
+    }
+
+    render() {
+        let text = '';
+        let color = 'black';
+        let side = this.info.side;
+        let css = `card_${side}`;
+
+        this.elem.style.borderColor = '';
+        this.elem.classList.remove('card_cover', 'card_face', 'owned', 'was_owned');
+
+        const owner_id = this.info.owner_id;
+        if (this.isOwned()) {
+            setCardBorder(this.elem, owner_id, 'owned');
+        } else if (this.info.prev_owner_id != '') {
+            setCardBorder(this.elem, this.info.prev_owner_id, 'was_owned');
+        }
+        if (side == FACE) {
+            text = `${this.info.rank} ${this.info.suit}`;
+            color = this.info.suit == '♥' || this.info.suit == '♦' ? 'red': 'black';
+        }
+        this.elem.innerText = text;
+        this.elem.classList.add(css);
+        this.elem.style.color = color;
+    }
+}
+
+class Chip extends TableItem {
+    constructor(info) {
+        super('chip', info);
+        this.elem.innerText = info.val;
+        this.elem.classList.add(`chip-${info.color}`);
+    }
+
+    handleDrop(slots) {
+        // XXX: accountChip has to be called in exactly in this handler.
+        // Otherwise the following situation will not be handled correctly:
+        // - when a chip that is being dragged stops under another chip.
+        // In this case the event will be called with the top most item with
+        // regard to z-index.
+        accountChip(this, slots);
+        slots.forEach(updateSlotsWithMoney);
+    }
+}
+
+class Dealer extends TableItem {
+    constructor(info) {
+        super('dealer', info);
+        this.elem.innerText = 'Dealer';
+    }
+}
+
+class Player extends TableItem {
+    constructor(info) {
+        super('player', info);
+        const player = STATE.players[info.owner_id];
+        this.elem.classList.add(player.skin);
+        this.elem.classList.add('fancy_text');
+        this.elem.innerText = player.Name;
+
+        const slot = document.getElementById(`slot-${player.index}`);
+        slot.playerElem = this.elem;
+    }
+
+    render() {
+        // HACK
+        this.elem.style.zIndex = ''; // use from css
+        this.elem.style.left = '';   // use from css
+        this.elem.style.top = '';    // use from css
+    };
+}
+
 const STATE = {
     current_uid: 0,
 
@@ -38,6 +218,8 @@ const STATE = {
     theTable: null,
 
     chipIndex: new ByValueIndex(),
+
+    items: {},
 
     socket: null,
     requestStats: new Stats(),
@@ -75,25 +257,20 @@ function handleChipDrop(chip, slots) {
 
 function stackChips(grabbedList, e) {
     // "stack" the chip to other chips under and nearby
-    const grabbedIDs = new Set(grabbedList.map((it) => it.id));
+    const grabbedIDs = new Set(grabbedList.map((it) => it.id()));
     for (let grabbed of grabbedList) {
-        const nearBy = document.elementsFromPoint(e.clientX, e.clientY).filter((it) => {
-            return it.info && it.info.class == 'chip' &&
-                !grabbedIDs.has(it.id) &&
-                grabbed.info.val == it.info.val;
+        const nearBy = document.elementsFromPoint(e.clientX, e.clientY).filter((el) => {
+            return el.info && el.info.class == 'chip' &&
+                !grabbedIDs.has(el.id) &&
+                grabbed.info.val == el.info.val;
         });
-        // for (let ch of STATE.chipIndex.get(it.info.val)) {
         for (let ch of nearBy) {
             const rect = new Rect(ch);
-            if ((new Rect(grabbed)).centerWithin(rect)) {
+            if (grabbed.getRect().centerWithin(rect)) {
                 const left = rect.left() + 3;
                 const top = rect.top();
+                grabbed.setXY(left, top);
 
-                grabbed.style.left = `${left}px`;
-                grabbed.style.top = `${top}px`;
-
-                grabbed.info.x = left;
-                grabbed.info.y = top;
                 return;
             }
         }
@@ -101,7 +278,7 @@ function stackChips(grabbedList, e) {
 }
 
 function handleCardDrop(card, slots) {
-    const rect = new Rect(card);
+    const rect = card.getRect();
     for (let slot of slots) {
         if (!slot.playerElem) {
             continue;
@@ -134,22 +311,10 @@ function handleCardDrop(card, slots) {
     }
 }
 
-function handleItemDrop(item) {
-    const slots = document.querySelectorAll('.slot');
-    switch (item.info.class) {
-    case 'chip':
-        handleChipDrop(item, slots);
-        break;
-    case 'card':
-        handleCardDrop(item, slots);
-        break;
-    }
-}
-
 function isOnOtherPlayerSlot(item) {
     // XXX: document.elementsFromPoint does not return controls
     // if pointer-events: none, hence can't use it
-    const itemRect = new Rect(item);
+    const itemRect = item.getRect();
     const current_uid = STATE.current_uid;
     const slots = document.querySelectorAll('.slot');
     for (let slot of slots) {
@@ -173,29 +338,28 @@ function rearrangeZIndexOnDrop(grabbed) {
     if (grabbed[0].info.class == 'dealer') {
         return; // dealer is always on top
     }
-    var itemRect = new Rect(grabbed[0]);
+    var itemRect = grabbed[0].getRect();
     // console.time('all_items');
-    const grabbedIDs = new Set(grabbed.map((it) => it.id));
-    const items = document.querySelectorAll('.chip, .card');
+    const grabbedIDs = new Set(grabbed.map((it) => it.id()));
+    const elems = document.querySelectorAll('.chip, .card');
     const underList = [];
     // XXX: O(n) elements on the table - to optimize
-    for (it of items) {
-         if (!grabbedIDs.has(it.id) &&
-             itemRect.intersects(new Rect(it))
+    for (el of elems) {
+         if (!grabbedIDs.has(el.id) &&
+             itemRect.intersects(new Rect(el))
          ) {
-             underList.push(it);
+             underList.push(STATE.items[el.id]);
          }
     }
     if (underList.length === 0) {
         return; // nothing is under
     }
     // sort elements by z-index descendig
-    underList.sort((a, b) => parseInt(b.style.zIndex) - parseInt(a.style.zIndex));
+    underList.sort((a, b) => b.zIndex() - a.zIndex());
     // underList should be sorted by z-index descendig
     let topmost = underList[0].info.z_index + 1;
     for (let it of grabbed.slice().reverse()) {
-        it.info.z_index = topmost;
-        it.style.zIndex = `${it.info.z_index}`;
+        it.setZIndex(topmost);
         topmost++;
     }
 }
@@ -232,17 +396,18 @@ function onItemMouseDown(e, item) {
 
     let grabbed = [item];
     if (e.shiftKey && item.info.class == 'chip') {
-        grabbed = grabbed.concat(document.elementsFromPoint(e.clientX, e.clientY).filter(
-            (it) => it.id != item.id && it.matches('.chip') && it.info.val == item.info.val
-        ));
+        const elems = document.elementsFromPoint(e.clientX, e.clientY).filter(
+            (el) => el.id != item.id() && el.matches('.chip') && el.info.val == item.info.val
+        );
+        grabbed = grabbed.concat(elems.map((el) => STATE.items[el.id]));
     }
     for (it of grabbed) {
-        it.initialX = parseInt(it.style.left);
-        it.initialY = parseInt(it.style.top);
-        it.initialZIndex = parseInt(window.getComputedStyle(it).zIndex);
+        it.initialX = parseInt(it.getElem().style.left);
+        it.initialY = parseInt(it.getElem().style.top);
+        it.initialZIndex = it.zIndex();
     }
     // push items to top when they are being dragged
-    grabbed.forEach((it) => { setItemZIndex(it, DRAG_ZINDEX + it.initialZIndex); });
+    grabbed.forEach((it) => { it.setZIndex(DRAG_ZINDEX + it.initialZIndex); });
 
     function onMouseMove(event) {
         if (activePtrID != event.pointerId) {
@@ -251,9 +416,7 @@ function onItemMouseDown(e, item) {
         if (grabbed.length < 1) {
             return;
         }
-
-        // console.log('move coords', tableX, tableY, tableRect.left);
-        if (isOffTheTable(item, event.clientX, event.clientY)) {
+        if (isOffTheTable(item.getElem(), event.clientX, event.clientY)) {
             return; // disallow to move items outside the table
         }
 
@@ -263,10 +426,7 @@ function onItemMouseDown(e, item) {
             const left = parseInt(it.initialX + deltaX);
             const top = parseInt(it.initialY + deltaY);
 
-            it.info.x = left;
-            it.info.y = top;
-            it.style.left = `${left}px`;
-            it.style.top = `${top}px`;
+            it.setXY(left, top);
         }
 
         const now_ms = new Date().getTime();
@@ -286,7 +446,7 @@ function onItemMouseDown(e, item) {
         // cleanup for this drag-n-drop
         document.removeEventListener('pointermove', onMouseMove);
         // restore z-index
-        grabbed.forEach((it) => { setItemZIndex(it, it.initialZIndex); });
+        grabbed.forEach((it) => { it.setZIndex(it.initialZIndex); });
 
         const deltaX = e.clientX - initialMouseX;
         const deltaY = e.clientY - initialMouseY;
@@ -301,17 +461,15 @@ function onItemMouseDown(e, item) {
         }
 
         ajax().success((resp) => {
-            grabbed.forEach((it) => { handleItemDrop(it); });
+            grabbed.forEach((it) => {
+                const slots = document.querySelectorAll('.slot');
+                it.handleDrop(slots);
+            });
             // all chips are put on the table
             grabbed = [];
         }).postJSON(`${window.location.pathname}/update_many`,
             { 'items': grabbed.map((it) => it.info) });
     }, { once: true });
-}
-
-function setItemZIndex(item, zi) {
-    item.info.z_index = zi;
-    item.style.zIndex = `${zi}`;
 }
 
 function newItem(cls, info, x, y) {
@@ -365,7 +523,7 @@ function onCardDblClick(e, card) {
     if (e.button != BUTTON_LEFT) {
         return;
     }
-    if (isOwned(card.info) && !isOwnedBy(card.info, STATE.current_uid)) {
+    if (card.isOwned() && !card.isOwnedBy(STATE.current_uid)) {
         return; // can't turn other player cards cards
     }
     console.log('mouse double click', card.info.id);
@@ -387,78 +545,27 @@ function onCardClick(e, card) {
     }
 }
 
-function newCard(info, x, y) {
-    const card = newItem('card', info, x, y);
-    card.addEventListener('click', (e) => { onCardClick(e, card) });
-    card.addEventListener('dblclick', (e) => { onCardDblClick(e, card) });
-    card.addEventListener('touchend', (e) => {
-        const currentTime = new Date().getTime();
-        const tapInterval = currentTime - STATE.lastTapTime;
-        if (tapInterval < TAP_MAX_DURATION_MS) {
-            e.button = BUTTON_LEFT;
-            onCardDblClick(e, card);
-        }
-        STATE.lastTapTime = currentTime;
-    });
-
-    card.render = () => { renderCard(card); };
-    return card;
-}
-
 function accountChip(chip, slots) {
     if (!chip) {
         return;
     }
-    chip.classList.remove('forbidden');
-    const rect = new Rect(chip);
+    chip.getElem().classList.remove('forbidden');
+    const rect = chip.getRect();
     for (let slot of slots) {
         if (!slot.chips) {
             continue;
         }
-        if (chip.id in slot.chips) {
-            delete slot.chips[chip.id];
+        if (chip.id() in slot.chips) {
+            delete slot.chips[chip.id()];
         }
         if (rect.centerWithin(slot.rect)) {
-            slot.chips[chip.id] = chip;
+            slot.chips[chip.id()] = chip.getElem();
             if (slot.playerElem && !isOwnedBy(slot.playerElem.info, STATE.current_uid)) {
-                chip.classList.add('forbidden');
+                chip.getElem().classList.add('forbidden');
             }
             return; // slots do not intersect
         }
     }
-}
-
-function newChip(info, x, y) {
-    const chip = newItem('chip', info, x, y);
-    chip.classList.add(`chip-${info.color}`);
-    chip.innerText = info.val;
-
-    return chip;
-}
-
-function newDealer(info, x, y) {
-    const item = newItem('dealer', info, x, y);
-    item.innerText = 'Dealer';
-    return item;
-}
-
-function newPlayer(info, x, y) {
-    const item = newItem('player', info, x, y);
-    const player = STATE.players[info.owner_id];
-    item.classList.add(player.skin);
-    item.classList.add('fancy_text');
-    item.innerText = player.Name;
-
-    const slot = document.getElementById(`slot-${player.index}`);
-    slot.playerElem = item;
-
-    item.render = () => {
-        // HACK
-        item.style.zIndex = ''; // use from css
-        item.style.left = '';   // use from css
-        item.style.top = '';    // use from css
-    };
-    return item;
 }
 
 function updateSlotsWithMoney(slot) {
@@ -477,24 +584,19 @@ function updateSlotsWithMoney(slot) {
 }
 
 function updateItem(src) {
-    if (src === null || src === undefined) {
+    if (!src) {
+        console.log('WARN updateItem:', src);
         return null;
     }
-    if (src.id === null || src.id === undefined) {
-        console.log('warn bad id', src);
+    if (!src.id) {
+        console.log('WARN bad id', src);
         return null;
     }
-    let item = document.getElementById(`item-${src.id}`);
-    if (item == null) {
+    let item = STATE.items[`item-${src.id}`];
+    if (!item) {
         item = createItem(src);
     }
-    item.info = src;
-    item.style.top = `${src.y}px`;
-    item.style.left = `${src.x}px`;
-    if (src.z_index != null && src.z_index != undefined &&
-        src.class != 'dealer') {
-        item.style.zIndex = src.z_index != 0 ? `${src.z_index}` : '';
-    }
+    item.update(src);
     item.render();
     return item;
 }
@@ -524,25 +626,26 @@ function createItem(info) {
     let item = function() {
         switch (info.class) {
         case 'card':
-            return newCard(info, info.x, info.y);
+            return new Card(info);
         case 'chip':
-            it = newChip(info, info.x, info.y);
-            STATE.chipIndex.add(it);
+            it = new Chip(info);
+            STATE.chipIndex.add(it.getElem());
             return it;
         case 'dealer':
-            return newDealer(info, info.x, info.y);
+            return new Dealer(info);
         case 'player':
-            return newPlayer(info, info.x, info.y);
+            return new Player(info);
         default:
             throw new Exception(`unknown item class: ${info.class}`)
         }
     }();
-    STATE.theTable.appendChild(item);
+    STATE.items[item.id()] = item;
+    STATE.theTable.appendChild(item.getElem());
     return item;
 }
 
 function takeCard(card) {
-    if (isOwned(card.info)) {
+    if (card.isOwned()) {
         return; // already owned
     }
     ajax().success((resp) => {
@@ -551,7 +654,7 @@ function takeCard(card) {
 }
 
 function showCard(card) {
-    if (!isOwnedBy(card.info, STATE.current_uid)) {
+    if (!card.isOwnedBy(STATE.current_uid)) {
         return; // can't show not owned cards
     }
     ajax().success((resp) => {
@@ -644,18 +747,6 @@ function logStats() {
         `&max_ms=${STATE.requestStats.max()}` +
         `&median_ms=${STATE.requestStats.median()}`;
     ajax().get(`/log?type=client_stats&${stats}`);
-}
-
-function getChipsFromPoint(x, y) {
-    res = [];
-    for (c of Object.values(STATE.chipIndex.byId)) {
-        const rect = new Rect(c);
-        if (rect.contains(x, y)) {
-            res.push(c);
-        }
-    }
-    res.sort((a, b) => b.info.zIndex - a.info.zIndex );
-    return res;
 }
 
 function start() {
