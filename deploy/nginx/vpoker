@@ -1,12 +1,29 @@
 server {
     listen 0.0.0.0:80;
 
-    server_name p.nb.kick.sh pkr.kick.sh;
-
-    set $backend "http://127.0.0.1:8080";
+    server_name pkr.kick.sh;
 
     # set rate limits on registrations
     # limit_req_zone $binary_remote_addr zone=regs_limit:10m rate=20r/m;  # 10 requests per minute per IP
+
+	location / {
+		return 302 https://$server_name$request_uri;
+	}
+
+	location ^~ /.well-known {
+		root /var/www;
+	}
+}
+
+server {
+    listen 443 ssl http2;
+
+    server_name pkr.kick.sh;
+
+    ssl_certificate /etc/ssl/uacme/pkr.kick.sh/cert.pem;
+    ssl_certificate_key /etc/ssl/uacme/private/pkr.kick.sh/key.pem;
+
+    set $backend "http://127.0.0.1:8080";
 
     location / {
         proxy_set_header Host $host;
