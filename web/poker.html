@@ -93,11 +93,11 @@
         (function() {
             document.addEventListener('DOMContentLoaded', start, false);
             // modal rules dialog handling
-            document.getElementById("rules-btn").addEventListener("click", function() {
+            document.getElementById("rules-btn").addEventListener("click", () => {
                 showElem(document.getElementById("rules-modal"));
                 showElem(document.getElementById("overlay"));
             });
-            document.getElementById("close-modal").addEventListener("click", function() {
+            document.getElementById("close-modal").addEventListener("click", () => {
                 hideElem(document.getElementById("rules-modal"));
                 hideElem(document.getElementById("overlay"));
             });
@@ -107,7 +107,7 @@
                     hideElem(document.getElementById("overlay"));
                 }
             });
-            document.getElementById("overlay").addEventListener("click", function() {
+            document.getElementById("overlay").addEventListener("click", () => {
                 hideElem(document.getElementById("rules-modal"));
                 hideElem(document.getElementById("overlay"));
             });
