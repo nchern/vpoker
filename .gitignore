@@ -22,5 +22,7 @@ notes
 bin
 artifacts
 
+tags
+
 # Auto-generated files
 *_generated.go
