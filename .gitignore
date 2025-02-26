@@ -24,5 +24,7 @@ artifacts
 
 tags
 
+*.patch
+
 # Auto-generated files
 *_generated.go
