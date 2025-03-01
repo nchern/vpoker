@@ -5,9 +5,16 @@ import (
 	"time"
 )
 
-const DEVELOPMENT = "dev"
+const (
+	development = "dev"
+	test        = "test"
+)
 
-var value = DEVELOPMENT
+var value = development
+
+func SetTest() {
+	value = test
+}
 
 // Version returns current version of the app
 func Version() string {
@@ -17,8 +24,11 @@ func Version() string {
 // JSVersion returns a version suitable to be used for JS sources versioning
 // in browser for cache busting
 func JSVersion() string {
-	if value == DEVELOPMENT {
+	if value == development {
 		return fmt.Sprintf("%d", time.Now().UnixMilli())
+	}
+	if value == test {
+		return value
 	}
 	return value
 }

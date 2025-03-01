@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"syscall"
@@ -48,6 +49,8 @@ type Server struct {
 	users  poker.UserMap
 
 	state *stateFile
+
+	templatesPath string
 }
 
 func handlePush(ctx *Context, conn *websocket.Conn, update *poker.Push) error {
@@ -224,7 +227,7 @@ func (s *Server) profile(r *http.Request) (*httpx.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	return httpx.RenderFile(http.StatusOK, "web/profile.html", m{
+	return httpx.RenderFile(http.StatusOK, filepath.Join(s.templatesPath, "web/profile.html"), m{
 		"Retpath":  sanitizedRetpath(r.URL),
 		"Username": sess.user.Name,
 		"Version":  version.JSVersion(),
@@ -256,8 +259,11 @@ func (s *Server) updateProfile(r *http.Request) (*httpx.Response, error) {
 	}
 	return httpx.RenderFile(
 		http.StatusOK,
-		"web/profile.html",
-		m{"Username": sess.user.Name},
+		filepath.Join(s.templatesPath, "web/profile.html"),
+		m{
+			"Username": sess.user.Name,
+			"Version":  version.JSVersion(),
+		},
 		lastNameCookie)
 }
 
@@ -391,7 +397,7 @@ func (s *Server) renderTable(ctx *Context, r *http.Request) (*httpx.Response, er
 		}
 		return nil, err
 	}
-	return httpx.RenderFile(http.StatusOK, "web/poker.html", m{
+	return httpx.RenderFile(http.StatusOK, filepath.Join(s.templatesPath, "web/poker.html"), m{
 		"Players":  players,
 		"TableID":  table.ID,
 		"Username": curUser.Name,
@@ -492,7 +498,7 @@ func (s *Server) index(r *http.Request) (*httpx.Response, error) {
 		emptySess = newEmptySession()
 	}
 
-	return httpx.RenderFile(http.StatusOK, "web/index.html", m{
+	return httpx.RenderFile(http.StatusOK, filepath.Join(s.templatesPath, "web/index.html"), m{
 		"Username": username,
 		"Version":  version.JSVersion(),
 	}, emptySess)
@@ -507,6 +513,8 @@ func (s *Server) SaveState() error { return s.state.save(s.users, s.tables) }
 // New returns new instance of this app http server
 func New() *Server {
 	return &Server{
+		templatesPath: ".",
+
 		state: NewStateFile(statePath),
 
 		tables: poker.NewTableMapSyncronized(),

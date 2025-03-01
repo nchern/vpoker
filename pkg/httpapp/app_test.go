@@ -27,8 +27,10 @@ type testContext struct {
 }
 
 func newTestContext(method string, url string, body io.Reader) *testContext {
+	server := New()
+	server.templatesPath = "../../"
 	return &testContext{
-		server:  New(),
+		server:  server,
 		request: httptest.NewRequest(method, url, body),
 	}
 }
