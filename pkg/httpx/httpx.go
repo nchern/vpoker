@@ -224,14 +224,15 @@ func H(fn RequestHandler) func(http.ResponseWriter, *http.Request) {
 			default:
 				msg = fmt.Sprintf("%s: %s\n", http.StatusText(code), err)
 			}
-			logger.Error.Printf("%s %s request_id=%s %s", r.Method, r.URL, requestID, err)
+			logger.Error.Printf("%s %s request_id=%s client_ip=%s %s",
+				r.Method, r.URL, requestID, clientIP, err)
 			writeResponse(r, w, code, []byte(msg), requestID, clientIP, startedAt)
 			return
 		}
 		res.writeCookies(w)
 		if res.code == http.StatusFound || res.code == http.StatusMovedPermanently {
-			logger.Info.Printf("%s %s request_id=%s client_ip=%s code=%d redirect_to=%s",
-				r.Method, r.URL, requestID, clientIP, res.code, res.url)
+			logger.Info.Printf("%s %s code=%d request_id=%s client_ip=%s redirect_to=%s",
+				r.Method, r.URL, res.code, requestID, clientIP, res.url)
 			http.Redirect(w, r, res.url, res.code)
 			return
 		}
