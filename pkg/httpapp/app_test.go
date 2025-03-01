@@ -11,14 +11,57 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nchern/vpoker/pkg/poker"
+	"github.com/nchern/vpoker/pkg/testx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func assertReader(t *testing.T, expected string, r io.Reader) {
-	b, err := io.ReadAll(r)
-	require.NoError(t, err)
-	assert.Equal(t, expected, string(b))
+type testContext struct {
+	server  *Server
+	request *http.Request
+
+	tableUnderTest *poker.Table
+	userUnderTest  *poker.User
+	session        *session
+}
+
+func newTestContext(method string, url string, body io.Reader) *testContext {
+	return &testContext{
+		server:  New(),
+		request: httptest.NewRequest(method, url, body),
+	}
+}
+
+func (tc *testContext) withTable(ids ...uuid.UUID) *testContext {
+	id := uuid.New()
+	if len(ids) > 0 {
+		id = ids[0]
+	}
+	tc.tableUnderTest = poker.NewTable(id, 1)
+	tc.server.tables.Set(tc.tableUnderTest.ID, tc.tableUnderTest)
+	return tc
+}
+
+func (tc *testContext) withUser(now time.Time) *testContext {
+	tc.userUnderTest = poker.NewUser(uuid.New(), "tester", now)
+	tc.server.users.Set(tc.userUnderTest.ID, tc.userUnderTest)
+	return tc
+}
+
+func (tc *testContext) withSession(now time.Time) *testContext {
+	tc.session = newSession(now, tc.userUnderTest)
+	tc.request.AddCookie(tc.session.toCookie(now))
+	return tc
+}
+
+func (tc *testContext) test(fn func(resp *http.Response)) {
+	rec := httptest.NewRecorder()
+	router := BindRoutes(tc.server)
+	router.ServeHTTP(rec, tc.request)
+
+	res := rec.Result()
+	defer res.Body.Close()
+	fn(res)
 }
 
 func TestAuthProtectedHandlersShouldReturnUnauthorizedOnNoAuth(t *testing.T) {
@@ -40,19 +83,12 @@ func TestAuthProtectedHandlersShouldReturnUnauthorizedOnNoAuth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.method+"_"+tt.url, func(t *testing.T) {
-			underTest := New()
 
-			req := httptest.NewRequest(tt.method, tt.url, nil)
-			rec := httptest.NewRecorder()
-
-			router := BindRoutes(underTest)
-			router.ServeHTTP(rec, req)
-
-			res := rec.Result()
-			defer res.Body.Close()
-
-			assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
-			assertReader(t, "Unauthorized", res.Body)
+			newTestContext(tt.method, tt.url, nil).
+				test(func(res *http.Response) {
+					assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+					testx.AssertReader(t, "Unauthorized", res.Body)
+				})
 		})
 	}
 }
@@ -68,21 +104,15 @@ func TestHandlersShouldRedirectOnNoAuth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.method+"_"+tt.url, func(t *testing.T) {
-			underTest := New()
 
-			req := httptest.NewRequest(tt.method, tt.url, nil)
-			rec := httptest.NewRecorder()
+			newTestContext(tt.method, tt.url, nil).
+				test(func(res *http.Response) {
 
-			router := BindRoutes(underTest)
-			router.ServeHTTP(rec, req)
-
-			res := rec.Result()
-			defer res.Body.Close()
-
-			assert.Equal(t, http.StatusFound, res.StatusCode)
-			loc, err := res.Location()
-			require.NoError(t, err)
-			assert.Equal(t, "/users/new", loc.Path)
+					assert.Equal(t, http.StatusFound, res.StatusCode)
+					loc, err := res.Location()
+					require.NoError(t, err)
+					assert.Equal(t, "/users/new", loc.Path)
+				})
 		})
 	}
 }
@@ -105,33 +135,22 @@ func TestTableHandlersShouldReturnErrorIfPlayerIsNotAtTheTable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.method+"_"+tt.url, func(t *testing.T) {
-			underTest := New()
-
 			now := time.Now()
-			u := poker.NewUser(uuid.New(), "tester", now)
-			sess := newSession(now, u)
-			underTest.users.Set(u.ID, u)
-
-			tbl := poker.NewTable(uuid.New(), 1)
-			underTest.tables.Set(tbl.ID, tbl)
-
-			path := fmt.Sprintf(tt.url, tbl.ID)
+			tableID := uuid.New()
+			path := fmt.Sprintf(tt.url, tableID)
 			var reqBody io.Reader = nil
 			if tt.givenBody != "" {
 				reqBody = bytes.NewBuffer([]byte(tt.givenBody))
 			}
-			req := httptest.NewRequest(tt.method, path, reqBody)
-			req.AddCookie(sess.toCookie(now))
+			newTestContext(tt.method, path, reqBody).
+				withTable(tableID).
+				withUser(now).
+				withSession(now).
+				test(func(res *http.Response) {
 
-			rec := httptest.NewRecorder()
-			router := BindRoutes(underTest)
-			router.ServeHTTP(rec, req)
-
-			res := rec.Result()
-			defer res.Body.Close()
-
-			assert.Equal(t, http.StatusForbidden, res.StatusCode)
-			assertReader(t, "you are not at the table", res.Body)
+					assert.Equal(t, http.StatusForbidden, res.StatusCode)
+					testx.AssertReader(t, "you are not at the table", res.Body)
+				})
 		})
 	}
 }
