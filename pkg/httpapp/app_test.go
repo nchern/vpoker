@@ -11,10 +11,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nchern/vpoker/pkg/poker"
-	"github.com/nchern/vpoker/pkg/testx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const defaultTestUserName = "tester"
 
 type testContext struct {
 	server  *Server
@@ -32,6 +33,11 @@ func newTestContext(method string, url string, body io.Reader) *testContext {
 	}
 }
 
+func (tc *testContext) withHeader(name string, val string) *testContext {
+	tc.request.Header.Set(name, val)
+	return tc
+}
+
 func (tc *testContext) withTable(ids ...uuid.UUID) *testContext {
 	id := uuid.New()
 	if len(ids) > 0 {
@@ -43,7 +49,7 @@ func (tc *testContext) withTable(ids ...uuid.UUID) *testContext {
 }
 
 func (tc *testContext) withUser(now time.Time) *testContext {
-	tc.userUnderTest = poker.NewUser(uuid.New(), "tester", now)
+	tc.userUnderTest = poker.NewUser(uuid.New(), defaultTestUserName, now)
 	tc.server.users.Set(tc.userUnderTest.ID, tc.userUnderTest)
 	return tc
 }
@@ -54,14 +60,12 @@ func (tc *testContext) withSession(now time.Time) *testContext {
 	return tc
 }
 
-func (tc *testContext) test(fn func(resp *http.Response)) {
+func (tc *testContext) test(fn func(tc *testContext, resp *httptest.ResponseRecorder)) {
 	rec := httptest.NewRecorder()
 	router := BindRoutes(tc.server)
 	router.ServeHTTP(rec, tc.request)
 
-	res := rec.Result()
-	defer res.Body.Close()
-	fn(res)
+	fn(tc, rec)
 }
 
 func TestAuthProtectedHandlersShouldReturnUnauthorizedOnNoAuth(t *testing.T) {
@@ -85,9 +89,9 @@ func TestAuthProtectedHandlersShouldReturnUnauthorizedOnNoAuth(t *testing.T) {
 		t.Run(tt.method+"_"+tt.url, func(t *testing.T) {
 
 			newTestContext(tt.method, tt.url, nil).
-				test(func(res *http.Response) {
-					assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
-					testx.AssertReader(t, "Unauthorized", res.Body)
+				test(func(tc *testContext, rec *httptest.ResponseRecorder) {
+					assert.Equal(t, http.StatusUnauthorized, rec.Result().StatusCode)
+					assert.Equal(t, "Unauthorized", rec.Body.String())
 				})
 		})
 	}
@@ -106,10 +110,10 @@ func TestHandlersShouldRedirectOnNoAuth(t *testing.T) {
 		t.Run(tt.method+"_"+tt.url, func(t *testing.T) {
 
 			newTestContext(tt.method, tt.url, nil).
-				test(func(res *http.Response) {
+				test(func(tc *testContext, rec *httptest.ResponseRecorder) {
 
-					assert.Equal(t, http.StatusFound, res.StatusCode)
-					loc, err := res.Location()
+					assert.Equal(t, http.StatusFound, rec.Result().StatusCode)
+					loc, err := rec.Result().Location()
 					require.NoError(t, err)
 					assert.Equal(t, "/users/new", loc.Path)
 				})
@@ -146,10 +150,10 @@ func TestTableHandlersShouldReturnErrorIfPlayerIsNotAtTheTable(t *testing.T) {
 				withTable(tableID).
 				withUser(now).
 				withSession(now).
-				test(func(res *http.Response) {
+				test(func(tc *testContext, rec *httptest.ResponseRecorder) {
 
-					assert.Equal(t, http.StatusForbidden, res.StatusCode)
-					testx.AssertReader(t, "you are not at the table", res.Body)
+					assert.Equal(t, http.StatusForbidden, rec.Result().StatusCode)
+					assert.Equal(t, "you are not at the table", rec.Body.String())
 				})
 		})
 	}

@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nchern/vpoker/pkg/testx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,14 +14,12 @@ import (
 func testHandler(
 	req *http.Request,
 	underTest func(w http.ResponseWriter, r *http.Request),
-	testFn func(actual *http.Response)) {
+	testFn func(actual *httptest.ResponseRecorder)) {
 
 	rec := httptest.NewRecorder()
 	underTest(rec, req)
 
-	res := rec.Result()
-	defer res.Body.Close()
-	testFn(res)
+	testFn(rec)
 }
 
 func TestHandlerShouldBlockBots(t *testing.T) {
@@ -33,9 +30,9 @@ func TestHandlerShouldBlockBots(t *testing.T) {
 	req := httptest.NewRequest("GET", "/", nil)
 	req.Header.Set("User-Agent", "TestBot /1.0")
 
-	testHandler(req, underTest, func(actual *http.Response) {
-		assert.Equal(t, http.StatusForbidden, actual.StatusCode)
-		testx.AssertReader(t, "bots are not allowed", actual.Body)
+	testHandler(req, underTest, func(actual *httptest.ResponseRecorder) {
+		assert.Equal(t, http.StatusForbidden, actual.Result().StatusCode)
+		assert.Equal(t, "bots are not allowed", actual.Body.String())
 	})
 }
 
@@ -45,10 +42,10 @@ func TestHandlerShouldHandleRedirect(t *testing.T) {
 	})
 	req := httptest.NewRequest("GET", "/", nil)
 
-	testHandler(req, underTest, func(actual *http.Response) {
-		assert.Equal(t, http.StatusFound, actual.StatusCode)
-		testx.AssertReader(t, "<a href=\"http://foo.bar\">Found</a>.\n\n", actual.Body)
-		u, err := actual.Location()
+	testHandler(req, underTest, func(actual *httptest.ResponseRecorder) {
+		assert.Equal(t, http.StatusFound, actual.Result().StatusCode)
+		assert.Equal(t, "<a href=\"http://foo.bar\">Found</a>.\n\n", actual.Body.String())
+		u, err := actual.Result().Location()
 		require.NoError(t, err)
 		assert.Equal(t, "http://foo.bar", u.String())
 	})
@@ -122,12 +119,12 @@ func TestHandlerShould(t *testing.T) {
 			req := httptest.NewRequest("GET", "/", nil)
 			underTest := H(tt.given)
 
-			testHandler(req, underTest, func(actual *http.Response) {
-				assert.Equal(t, tt.expectedCode, actual.StatusCode)
-				testx.AssertReader(t, tt.expectedBody, actual.Body)
-				assert.NotEmpty(t, actual.Header[RequestHeaderName])
-				assert.Equal(t, tt.expectedContentType, actual.Header["Content-Type"])
-				for i, c := range actual.Cookies() {
+			testHandler(req, underTest, func(actual *httptest.ResponseRecorder) {
+				assert.Equal(t, tt.expectedCode, actual.Result().StatusCode)
+				assert.Equal(t, tt.expectedBody, actual.Body.String())
+				assert.NotEmpty(t, actual.Header()[RequestHeaderName])
+				assert.Equal(t, tt.expectedContentType, actual.Header()["Content-Type"])
+				for i, c := range actual.Result().Cookies() {
 					assert.Equal(t, tt.expectedCookies[i], c.String())
 				}
 			})
