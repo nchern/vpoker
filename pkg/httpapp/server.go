@@ -474,7 +474,7 @@ func (s *Server) newUser(r *http.Request) (*httpx.Response, error) {
 		if err != nil {
 			return nil, err
 		}
-		logger.Info.Printf("%s user_name=%s user_registered %s", ctx, name, r.UserAgent())
+		logger.Info.Printf("%s user_id=%s user_name=%s user_registered %s", ctx, u.ID, name, r.UserAgent())
 		if shouldChangeName {
 			redirectTo = fmt.Sprintf("/users/profile?%s=%s", retPathKey, redirectTo)
 		}
