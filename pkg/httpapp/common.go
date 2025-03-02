@@ -21,6 +21,14 @@ import (
 	"github.com/nchern/vpoker/pkg/poker"
 )
 
+type m map[string]any
+
+func logError(err error, tag string) {
+	if err != nil {
+		logger.Error.Printf("%s: %s", tag, err)
+	}
+}
+
 type session struct {
 	UserID    uuid.UUID `json:"user_id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -45,13 +53,13 @@ func (s *session) toJSON() []byte {
 	return b
 }
 
-func (s *session) toCookie(now time.Time) *http.Cookie {
+func (s *session) toCookie() *http.Cookie {
 	val := base64.URLEncoding.EncodeToString(s.toJSON())
 	return &http.Cookie{
 		Path:    "/",
 		Value:   val,
 		Name:    "session",
-		Expires: now.Add(cookieExpiresAt),
+		Expires: s.CreatedAt.Add(cookieExpiresAt),
 	}
 }
 

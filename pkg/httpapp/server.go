@@ -31,14 +31,6 @@ var (
 	usernameValidator = regexp.MustCompile("(?i)^[a-zа-яЁё0-9_-]+?$")
 )
 
-type m map[string]any
-
-func logError(err error, tag string) {
-	if err != nil {
-		logger.Error.Printf("%s: %s", tag, err)
-	}
-}
-
 type ItemUpdatedResponse struct {
 	Updated *poker.TableItem `json:"updated"`
 }
@@ -51,6 +43,8 @@ type Server struct {
 	state *stateFile
 
 	templatesPath string
+
+	now func() time.Time
 }
 
 func handlePush(ctx *Context, conn *websocket.Conn, update *poker.Push) error {
@@ -246,25 +240,39 @@ func (s *Server) updateProfile(r *http.Request) (*httpx.Response, error) {
 	if !usernameValidator.MatchString(name) {
 		return httpx.String(http.StatusBadRequest, "invalid characters in user name"), nil
 	}
-	if err := s.users.Update(sess.user.ID, func(u *poker.User) error {
-		u.Name = name
-		sess.user = u
-		return nil
-	}); err != nil {
-		return nil, err
+	var user *poker.User
+	// XXX: O(n)
+	s.users.Each(func(uid uuid.UUID, u *poker.User) bool {
+		if strings.EqualFold(u.Name, name) {
+			user = u
+			return false
+		}
+		return true
+	})
+	if user == nil {
+		if err := s.users.Update(sess.user.ID, func(u *poker.User) error {
+			u.Name = name
+			user = u
+			return nil
+		}); err != nil {
+			return nil, err
+		}
 	}
-	lastNameCookie := newLastName(time.Now(), name)
+	cookies := []*http.Cookie{
+		newSession(s.now(), user).toCookie(),
+		newLastName(s.now(), name),
+	}
 	if retPath := sanitizedRetpath(r.URL); retPath != "" {
-		return httpx.Redirect(retPath).SetCookie(lastNameCookie), nil
+		return httpx.Redirect(retPath).SetCookie(cookies...), nil
 	}
 	return httpx.RenderFile(
 		http.StatusOK,
 		filepath.Join(s.templatesPath, "web/profile.html"),
 		m{
-			"Username": sess.user.Name,
+			"Username": user.Name,
 			"Version":  version.JSVersion(),
 		},
-		lastNameCookie)
+		cookies...)
 }
 
 func updateItem(ctx *Context, r *http.Request) (*poker.TableItem, error) {
@@ -465,11 +473,11 @@ func (s *Server) newUser(r *http.Request) (*httpx.Response, error) {
 			}
 		}
 		shouldChangeName := strings.HasPrefix(strings.ToLower(name), "anon")
-		now := time.Now()
+		now := s.now()
 		u := poker.NewUser(uuid.New(), name, now)
 		s.users.Set(u.ID, u)
 		sess := &session{UserID: u.ID, CreatedAt: now, Name: u.Name}
-		cookie := sess.toCookie(now)
+		cookie := sess.toCookie()
 		ctx, err := newContextBuilder(r.Context()).build()
 		if err != nil {
 			return nil, err
@@ -519,5 +527,7 @@ func New() *Server {
 
 		tables: poker.NewTableMapSyncronized(),
 		users:  poker.NewUserMapSyncronized(),
+
+		now: func() time.Time { return time.Now() },
 	}
 }

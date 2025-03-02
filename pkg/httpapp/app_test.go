@@ -24,17 +24,26 @@ type testContext struct {
 	tableUnderTest *poker.Table
 	userUnderTest  *poker.User
 	session        *session
+
+	now time.Time
 }
 
 func newTestContext(method string, url string, body io.Reader) *testContext {
 	server := New()
 	server.templatesPath = "../../"
-	return &testContext{
+	res := &testContext{
 		server:  server,
 		request: httptest.NewRequest(method, url, body),
 	}
+	return res.setNow(time.Now())
 }
 
+func (tc *testContext) setNow(now time.Time) *testContext {
+	tc.now = now
+	tc.server.now = func() time.Time { return tc.now }
+	return tc
+
+}
 func (tc *testContext) withHeader(name string, val string) *testContext {
 	tc.request.Header.Set(name, val)
 	return tc
@@ -56,9 +65,15 @@ func (tc *testContext) withUser(now time.Time) *testContext {
 	return tc
 }
 
+func (tc *testContext) useUser(user *poker.User) *testContext {
+	tc.userUnderTest = user
+	tc.server.users.Set(tc.userUnderTest.ID, tc.userUnderTest)
+	return tc
+}
+
 func (tc *testContext) withSession(now time.Time) *testContext {
 	tc.session = newSession(now, tc.userUnderTest)
-	tc.request.AddCookie(tc.session.toCookie(now))
+	tc.request.AddCookie(tc.session.toCookie())
 	return tc
 }
 

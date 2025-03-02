@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/nchern/vpoker/pkg/poker"
 	"github.com/nchern/vpoker/pkg/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,17 +20,21 @@ import (
 
 func init() { version.SetTest() }
 
+func profilePage(t *testing.T, userName string) string {
+	var buf bytes.Buffer
+	tpl, err := template.ParseFiles(filepath.Join("../../", "web/profile.html"))
+	require.NoError(t, err)
+	require.NoError(t, tpl.Execute(&buf, m{
+		"Retpath":  "",
+		"Version":  "test",
+		"Username": userName,
+	}))
+	return buf.String()
+}
+
 func TestProfileUpdateShould(t *testing.T) {
 	const retpath = "/ret/path"
 	const updatedUsername = "FooBar"
-	var expectedProfilePage bytes.Buffer
-	tpl, err := template.ParseFiles(filepath.Join("../../", "web/profile.html"))
-	require.NoError(t, err)
-	require.NoError(t, tpl.Execute(&expectedProfilePage, m{
-		"Retpath":  "",
-		"Version":  "test",
-		"Username": updatedUsername,
-	}))
 	var tests = []struct {
 		name string
 
@@ -70,7 +76,7 @@ func TestProfileUpdateShould(t *testing.T) {
 			"",
 			updatedUsername,
 			http.StatusOK,
-			expectedProfilePage.String(),
+			profilePage(t, updatedUsername),
 			[]string{newLastName(time.Now(), updatedUsername).String()},
 		},
 	}
@@ -91,11 +97,72 @@ func TestProfileUpdateShould(t *testing.T) {
 						actualLocation, _ := rec.Result().Location()
 						assert.Equal(t, tt.givenRetpath, actualLocation.Path)
 					}
+					if len(tt.expectedCookies) > 0 {
+						tt.expectedCookies = append([]string{
+							newSession(tc.now, tc.userUnderTest).toCookie().String(),
+						}, tt.expectedCookies...)
+					}
 					require.Len(t, rec.Result().Cookies(), len(tt.expectedCookies))
 					for i, c := range rec.Result().Cookies() {
 						assert.Equal(t, tt.expectedCookies[i], c.String())
 					}
 				})
+		})
+	}
+}
+
+func TestProfileUpdateShouldReturnExistingUserCookieOnSameUserName(t *testing.T) {
+	now := time.Now()
+	const existingUsername = "existing"
+	existingUser := poker.NewUser(uuid.New(), existingUsername, now)
+	form := (url.Values{"user_name": []string{existingUsername}}).Encode()
+	expectedCookies := []string{
+		newSession(now, existingUser).toCookie().String(),
+		newLastName(now, existingUsername).String(),
+	}
+
+	var tests = []struct {
+		name         string
+		given        string
+		expectedCode int
+		expectedBody string
+	}{
+		{"on profile page",
+			"/users/profile",
+			http.StatusOK,
+			profilePage(t, existingUsername),
+		},
+		{"with ret_path",
+			"/users/profile?ret_path=/",
+			http.StatusFound,
+			""},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			tc := newTestContext("POST", tt.given, strings.NewReader(form)).
+				setNow(now).
+				withUser(now).
+				withSession(now).
+				withHeader("Content-Type", "application/x-www-form-urlencoded")
+
+			tc.server.users.Set(existingUser.ID, existingUser)
+
+			tc.test(func(tc *testContext, rec *httptest.ResponseRecorder) {
+				assert.Equal(t, tt.expectedCode, rec.Result().StatusCode)
+				assert.Equal(t, tt.expectedBody, rec.Body.String())
+
+				// initial user was not touched
+				requestUser, _ := tc.server.users.Get(tc.userUnderTest.ID)
+				assert.Equal(t, defaultTestUserName, requestUser.Name)
+
+				require.Len(t, rec.Result().Cookies(), len(expectedCookies))
+				for i, c := range rec.Result().Cookies() {
+					assert.Equal(t, expectedCookies[i], c.String())
+				}
+				oldSession := tc.session.toCookie().String()
+				assert.NotEqual(t, oldSession, rec.Result().Cookies()[0].String())
+			})
 		})
 	}
 }

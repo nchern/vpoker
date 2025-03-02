@@ -73,8 +73,8 @@ func (r *Response) writeCookies(w http.ResponseWriter) {
 }
 
 // SetCookie sets a cookie on this response
-func (r *Response) SetCookie(cookie *http.Cookie) *Response {
-	r.cookies = append(r.cookies, cookie)
+func (r *Response) SetCookie(cookies ...*http.Cookie) *Response {
+	r.cookies = append(r.cookies, cookies...)
 	return r
 }
 
