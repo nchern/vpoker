@@ -189,12 +189,12 @@ nav a:hover {
 }
 
 .player_slot {
-    height: 180px;
+    height: 155px;
     width: 400px;
 }
 
 #slot-0 {
-    top: 535px;
+    top: 560px;
     left: 0px;
 }
 
@@ -204,16 +204,16 @@ nav a:hover {
 }
 
 #slot-2 {
-    top: 535px;
+    top: 560px;
     left: 880px;
 }
 
 #round-slot {
-    left: 340px;
-    top: 215px;
+    left: 300px;
+    top: 190px;
 
-    height: 290px;
-    width: 600px;
+    height: 340px;
+    width: 680px;
 }
 
 #game-slot {
