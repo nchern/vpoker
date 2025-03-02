@@ -33,8 +33,8 @@ type Table struct {
 
 	lock sync.RWMutex
 
-	// idSeq is responsible for items id generation
-	idSeq sequence
+	// IDSeq is responsible for items id generation
+	IDSeq sequence
 }
 
 type sequence int
@@ -48,7 +48,7 @@ func (s *sequence) Next() int {
 // NewTable creates a new table instance
 func NewTable(id uuid.UUID, chipsN int) *Table {
 	r := &Table{
-		idSeq:   0,
+		IDSeq:   0,
 		ID:      id,
 		Players: map[uuid.UUID]*Player{},
 	}
@@ -75,9 +75,9 @@ func shuffle(items []*TableItem) {
 
 // StartGame rearranges all the objects on the table to the initial state
 func (t *Table) StartGame() *Table {
-	logger.Debug.Printf("StartGame.begin table_id=%s seq=%d", t.ID, int(t.idSeq))
+	logger.Debug.Printf("StartGame.begin table_id=%s seq=%d", t.ID, int(t.IDSeq))
 	for _, c := range t.Deck {
-		t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), 0, 0).AsCard(c))
+		t.Items = append(t.Items, NewTableItem(t.IDSeq.Next(), 0, 0).AsCard(c))
 	}
 	t.Shuffle()
 	x := 10
@@ -88,11 +88,11 @@ func (t *Table) StartGame() *Table {
 			y += 100
 		}
 		t.Items = append(t.Items,
-			NewTableItem(t.idSeq.Next(), x, y).AsChip(c))
+			NewTableItem(t.IDSeq.Next(), x, y).AsChip(c))
 		x++
 	}
-	t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), 595, 315).AsDealer())
-	logger.Debug.Printf("StartGame.finished table_id=%s seq=%d", t.ID, int(t.idSeq))
+	t.Items = append(t.Items, NewTableItem(t.IDSeq.Next(), 595, 315).AsDealer())
+	logger.Debug.Printf("StartGame.finished table_id=%s seq=%d", t.ID, int(t.IDSeq))
 	return t
 }
 
@@ -136,7 +136,7 @@ func (t *Table) generateChipsForPlayer(idx int) {
 			y = slot[1] + chipWidth
 		}
 		for i := 0; i < counts[ci.Color]; i++ {
-			item := NewTableItem(t.idSeq.Next(), x, y).AsChip(&ci)
+			item := NewTableItem(t.IDSeq.Next(), x, y).AsChip(&ci)
 			t.Items = append(t.Items, item)
 			x += 2
 		}
@@ -166,18 +166,18 @@ func (t *Table) Join(u *User) ([]*TableItem, error) {
 		// this is a safeguard, should never happen
 		return nil, httpx.NewError(http.StatusForbidden, "this table is full")
 	}
-	logger.Debug.Printf("Join.begin table_id=%s seq=%d", t.ID, int(t.idSeq))
+	logger.Debug.Printf("Join.begin table_id=%s seq=%d", t.ID, int(t.IDSeq))
 	p := newPlayer(u, playerColors[index])
 	p.Index = index
 	p.Skin = fmt.Sprintf("player_%d", index)
 
 	t.Players[u.ID] = p
 	startIdx := len(t.Items)
-	logger.Debug.Printf("Join: user_name=%s seq=%d", u.Name, int(t.idSeq))
-	t.Items = append(t.Items, NewTableItem(t.idSeq.Next(), 0, 0).AsPlayer(p))
+	logger.Debug.Printf("Join: user_name=%s seq=%d", u.Name, int(t.IDSeq))
+	t.Items = append(t.Items, NewTableItem(t.IDSeq.Next(), 0, 0).AsPlayer(p))
 
 	t.generateChipsForPlayer(index)
-	logger.Debug.Printf("Join.finished table_id=%s seq=%d", t.ID, int(t.idSeq))
+	logger.Debug.Printf("Join.finished table_id=%s seq=%d", t.ID, int(t.IDSeq))
 	return t.Items[startIdx:], nil
 }
 
