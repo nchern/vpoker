@@ -82,11 +82,10 @@ func TestProfileUpdateShould(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			now := time.Now()
 			endpoint := "/users/profile?ret_path=" + tt.givenRetpath
 			newTestContext("POST", endpoint, strings.NewReader(tt.givenForm.Encode())).
-				withUser(now).
-				withSession(now).
+				withUser().
+				withSession().
 				withHeader("Content-Type", "application/x-www-form-urlencoded").
 				test(func(tc *testContext, rec *httptest.ResponseRecorder) {
 					assert.Equal(t, tt.expectedCode, rec.Result().StatusCode)
@@ -142,8 +141,8 @@ func TestProfileUpdateShouldReturnExistingUserCookieOnSameUserName(t *testing.T)
 		t.Run(tt.name, func(t *testing.T) {
 			tc := newTestContext("POST", tt.given, strings.NewReader(form)).
 				setNow(now).
-				withUser(now).
-				withSession(now).
+				withUser().
+				withSession().
 				withHeader("Content-Type", "application/x-www-form-urlencoded")
 
 			tc.server.users.Set(existingUser.ID, existingUser)

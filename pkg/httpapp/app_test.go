@@ -59,20 +59,14 @@ func (tc *testContext) withTable(ids ...uuid.UUID) *testContext {
 	return tc
 }
 
-func (tc *testContext) withUser(now time.Time) *testContext {
-	tc.userUnderTest = poker.NewUser(uuid.New(), defaultTestUserName, now)
+func (tc *testContext) withUser() *testContext {
+	tc.userUnderTest = poker.NewUser(uuid.New(), defaultTestUserName, tc.now)
 	tc.server.users.Set(tc.userUnderTest.ID, tc.userUnderTest)
 	return tc
 }
 
-func (tc *testContext) useUser(user *poker.User) *testContext {
-	tc.userUnderTest = user
-	tc.server.users.Set(tc.userUnderTest.ID, tc.userUnderTest)
-	return tc
-}
-
-func (tc *testContext) withSession(now time.Time) *testContext {
-	tc.session = newSession(now, tc.userUnderTest)
+func (tc *testContext) withSession() *testContext {
+	tc.session = newSession(tc.now, tc.userUnderTest)
 	tc.request.AddCookie(tc.session.toCookie())
 	return tc
 }
@@ -156,7 +150,6 @@ func TestTableHandlersShouldReturnErrorIfPlayerIsNotAtTheTable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.method+"_"+tt.url, func(t *testing.T) {
-			now := time.Now()
 			tableID := uuid.New()
 			path := fmt.Sprintf(tt.url, tableID)
 			var reqBody io.Reader = nil
@@ -165,8 +158,8 @@ func TestTableHandlersShouldReturnErrorIfPlayerIsNotAtTheTable(t *testing.T) {
 			}
 			newTestContext(tt.method, path, reqBody).
 				withTable(tableID).
-				withUser(now).
-				withSession(now).
+				withUser().
+				withSession().
 				test(func(tc *testContext, rec *httptest.ResponseRecorder) {
 
 					assert.Equal(t, http.StatusForbidden, rec.Result().StatusCode)
